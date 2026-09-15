@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', MULTIPLO:'👥' };
+const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', VOUCHER:'🎫', MULTIPLO:'👥' };
 
 export default function PainelGestao() {
   const [caixa, setCaixa]       = useState({ totalDia: 0, ultimasVendas: [], porForma: {}, totalCanceladas: 0 });

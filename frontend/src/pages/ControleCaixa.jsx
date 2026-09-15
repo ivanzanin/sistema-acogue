@@ -4,8 +4,8 @@ import api from '../utils/api';
 import { imprimirFechamentoCaixa } from '../utils/imprimirCupom';
 
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', MULTIPLO:'👥' };
-const FORMA_COR  = { DINHEIRO:'text-emerald-700', PIX:'text-blue-700', DEBITO:'text-purple-700', CREDITO:'text-orange-700', MULTIPLO:'text-indigo-700' };
+const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', VOUCHER:'🎫', MULTIPLO:'👥' };
+const FORMA_COR  = { DINHEIRO:'text-emerald-700', PIX:'text-blue-700', DEBITO:'text-purple-700', CREDITO:'text-orange-700', VOUCHER:'text-teal-700', MULTIPLO:'text-indigo-700' };
 
 export default function ControleCaixa() {
   const navigate = useNavigate();
@@ -226,7 +226,7 @@ export default function ControleCaixa() {
 
           {/* BREAKDOWN POR FORMA */}
           {status.porForma && Object.values(status.porForma).some(v => v > 0) && (
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
               {Object.entries(status.porForma).map(([forma, val]) => (
                 <div key={forma} className="bg-white border border-stone-200 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-1">

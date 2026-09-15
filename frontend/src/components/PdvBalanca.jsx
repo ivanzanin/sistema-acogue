@@ -10,6 +10,7 @@ const FORMAS = [
   { id: 'PIX',      label: 'PIX',      icon: '📱', cor: 'border-blue-500 bg-blue-500/10 text-blue-700' },
   { id: 'DEBITO',   label: 'Debito',   icon: '💳', cor: 'border-purple-500 bg-purple-500/10 text-purple-700' },
   { id: 'CREDITO',  label: 'Credito',  icon: '💳', cor: 'border-orange-500 bg-orange-500/10 text-orange-700' },
+  { id: 'VOUCHER',  label: 'Voucher Alim.', icon: '🎫', cor: 'border-teal-500 bg-teal-500/10 text-teal-700' },
 ];
 
 // Modal para peso manual (produtos KG)
@@ -818,7 +819,7 @@ export default function PdvBalanca() {
               {!modoDividido ? (
                 <>
                   {/* Seletor de Forma de Pagamento Única */}
-                  <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="grid grid-cols-5 gap-2 mb-3">
                     {FORMAS.map(f => (
                       <button key={f.id} onClick={() => { setFormaPagamento(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
                         className={`flex flex-col items-center py-2.5 rounded-lg border-2 text-xs font-bold uppercase tracking-wide transition-all ${formaPagamento === f.id ? f.cor : 'border-stone-300 text-stone-500 hover:border-stone-400'}`}>
@@ -970,8 +971,8 @@ export default function PdvBalanca() {
                           </div>
                         </div>
 
-                        {/* 4 Métodos de Pagamento */}
-                        <div className="grid grid-cols-4 gap-1">
+                        {/* 5 Métodos de Pagamento */}
+                        <div className="grid grid-cols-5 gap-1">
                           {FORMAS.map(f => {
                             const ativo = p.forma === f.id;
                             return (

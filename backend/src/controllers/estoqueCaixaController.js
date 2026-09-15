@@ -67,7 +67,7 @@ exports.registrarVenda = async (req, res) => {
     let troco = 0;
 
     if (Array.isArray(pagamentos) && pagamentos.length > 0) {
-      const formasValidas = ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'];
+      const formasValidas = ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'VOUCHER'];
       let somaPags = 0;
       let totalDinheiroDevido = 0;
       let totalDinheiroPago = 0;
@@ -110,7 +110,7 @@ exports.registrarVenda = async (req, res) => {
         troco = 0;
       }
     } else {
-      if (!['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'].includes(formaPagamento))
+      if (!['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'VOUCHER'].includes(formaPagamento))
         return res.status(400).json({ erro: 'Forma de pagamento invalida.' });
       vp = toFloat(valorPago) || totalVenda;
       troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalVenda) : 0;
@@ -214,7 +214,7 @@ exports.resumoCaixaHoje = async (req, res) => {
     });
     const ativas   = vendas.filter(v => !v.cancelado);
     const totalDia = ativas.reduce((s, v) => s + v.valorTotal, 0);
-    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
+    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0, VOUCHER: 0 };
     for (const v of ativas) {
       if (v.pagamentosJson) {
         try {

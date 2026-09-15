@@ -9,6 +9,7 @@ const FORMAS = [
   { id: 'PIX',      label: 'PIX',      icon: '📱' },
   { id: 'DEBITO',   label: 'Debito',   icon: '💳' },
   { id: 'CREDITO',  label: 'Credito',  icon: '💳' },
+  { id: 'VOUCHER',  label: 'Voucher Alim.', icon: '🎫' },
 ];
 
 const formatarData = (isoStr) => {
@@ -102,7 +103,7 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
           <span className="text-stone-600 text-sm">Total</span>
           <span className="text-3xl font-bold text-stone-900">{fmt(comanda.total)}</span>
         </div>
-        <div className="grid grid-cols-4 gap-2 mb-5">
+        <div className="grid grid-cols-5 gap-2 mb-5">
           {FORMAS.map(f => (
             <button key={f.id} onClick={() => { setForma(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
               className={`flex flex-col items-center py-3 rounded-xl border-2 text-xs font-bold uppercase tracking-wide transition-all ${forma === f.id ? 'border-brand-500 bg-brand-500/10 text-amber-700' : 'border-stone-300 text-stone-500 hover:border-stone-400'}`}>

@@ -898,6 +898,9 @@ video {
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+.grid-cols-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
 .flex-col {
   flex-direction: column;
 }
@@ -1187,6 +1190,10 @@ video {
   --tw-border-opacity: 1;
   border-color: rgb(214 211 209 / var(--tw-border-opacity, 1));
 }
+.border-teal-500 {
+  --tw-border-opacity: 1;
+  border-color: rgb(20 184 166 / var(--tw-border-opacity, 1));
+}
 .border-transparent {
   border-color: transparent;
 }
@@ -1382,6 +1389,9 @@ video {
 }
 .bg-stone-900\/60 {
   background-color: rgb(28 25 23 / 0.6);
+}
+.bg-teal-500\/10 {
+  background-color: rgb(20 184 166 / 0.1);
 }
 .bg-transparent {
   background-color: transparent;
@@ -1800,6 +1810,10 @@ video {
 .text-stone-900 {
   --tw-text-opacity: 1;
   color: rgb(28 25 23 / var(--tw-text-opacity, 1));
+}
+.text-teal-700 {
+  --tw-text-opacity: 1;
+  color: rgb(15 118 110 / var(--tw-text-opacity, 1));
 }
 .text-white {
   --tw-text-opacity: 1;
@@ -2318,6 +2332,10 @@ aside {
 
   .md\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 @media (min-width: 1024px) {

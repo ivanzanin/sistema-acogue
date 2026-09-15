@@ -3,6 +3,7 @@ const FORMA_LABEL = {
   PIX:      'PIX',
   DEBITO:   'Cartao Debito',
   CREDITO:  'Cartao Credito',
+  VOUCHER:  'Voucher Alimentacao',
 };
 
 export function imprimirCupom(itensCarrinho, total, nomeAcougue, formaPagamento = 'DINHEIRO', valorPago = 0, troco = 0, pagamentos = null) {

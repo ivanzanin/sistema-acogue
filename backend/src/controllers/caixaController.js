@@ -45,7 +45,7 @@ exports.fecharCaixa = async (req, res) => {
       where: { tenantId, data: { gte: inicioDia() }, cancelado: false }
     });
     const totalVendas = vendas.reduce((s, v) => s + v.valorTotal, 0);
-    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
+    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0, VOUCHER: 0 };
     for (const v of vendas) {
       if (v.pagamentosJson) {
         try {
@@ -107,7 +107,7 @@ exports.statusCaixa = async (req, res) => {
     const abertura  = operacoes.find(o => o.tipo === 'ABERTURA')?.valor || 0;
     const sangrias  = operacoes.filter(o => o.tipo === 'SAIDA').reduce((s, o) => s + o.valor, 0);
     const suprimentos = operacoes.filter(o => o.tipo === 'ENTRADA').reduce((s, o) => s + o.valor, 0);
-    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
+    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0, VOUCHER: 0 };
     for (const v of vendasAtivas) {
       if (v.pagamentosJson) {
         try {

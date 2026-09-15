@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../utils/api';
 
 const BRL = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const FORMAS = ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'];
-const FORMA_ICON = { DINHEIRO: '💵', PIX: '📱', DEBITO: '💳', CREDITO: '💳' };
+const FORMAS = ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'VOUCHER'];
+const FORMA_ICON = { DINHEIRO: '💵', PIX: '📱', DEBITO: '💳', CREDITO: '💳', VOUCHER: '🎫' };
 const EMOJIS = ['🍗', '🥩', '🌭', '🍖', '🔥', '🥓', '🫀', '🍔'];
 const CORES = ['#D97706','#DC2626','#059669','#7C3AED','#DB2777','#0284C7','#65A30D','#EA580C'];
 
@@ -892,7 +892,7 @@ function ModalComanda({ comanda, produtos, onAtualizado, onFechar }) {
             <div style={{ marginBottom: '12px' }}>
               <DividirConta total={totalCalculado} />
               <p style={{ ...lbl, marginBottom: '8px', marginTop: '10px' }}>Forma de pagamento</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '10px' }}>
                 {FORMAS.map(f => (
                   <button key={f} onClick={() => setForma(f)} style={{ padding: '8px', borderRadius: '8px', border: `2px solid ${forma === f ? '#059669' : '#E2E8F0'}`, background: forma === f ? '#F0FDF4' : 'white', color: forma === f ? '#059669' : '#64748B', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}>
                     {FORMA_ICON[f]} {f}
@@ -932,7 +932,7 @@ function ModalFecharSessao({ resumo, onFechar, onFechada }) {
     finally { setFechando(false); }
   };
 
-  const fpIcon = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳' };
+  const fpIcon = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', VOUCHER:'🎫' };
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
