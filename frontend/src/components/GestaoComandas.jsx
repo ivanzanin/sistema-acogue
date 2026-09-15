@@ -97,7 +97,7 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm">
       <div className="bg-white border border-stone-300 rounded-2xl p-7 w-full max-w-md shadow-2xl">
         <p className="text-xs text-brand-700 font-semibold font-bold mb-1">Fechar Comanda</p>
-        <p className="text-stone-600 text-sm mb-5">{comanda.nomeCliente} — Aberta em {formatarDataHora(comanda.criadaEm)}</p>
+        <p className="text-stone-600 text-sm mb-5">{comanda.nomeCliente} — Aberta em {formatarData(comanda.criadaEm)}</p>
         <div className="bg-stone-100 rounded-xl px-5 py-4 flex justify-between items-center mb-5">
           <span className="text-stone-600 text-sm">Total</span>
           <span className="text-3xl font-bold text-stone-900">{fmt(comanda.total)}</span>
@@ -322,7 +322,7 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
         <div className="text-right min-w-24">
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-1 mb-1">
             <p className="text-xs text-amber-900 font-bold leading-tight">{comanda.nomeCliente}</p>
-            <p className="text-[10px] text-amber-700">Aberta em {formatarDataHora(comanda.criadaEm)}</p>
+            <p className="text-[10px] text-amber-700">Aberta em {formatarData(comanda.criadaEm)}</p>
           </div>
           <p className="text-xs text-stone-500 font-medium">Total</p>
           <p className="text-xl font-bold text-stone-900">{fmt(comanda.total)}</p>
@@ -423,8 +423,8 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-base font-bold text-stone-900 leading-tight">{item.nome}</span>
                         {item.criadoEm && (
-                          <span className="text-[11px] font-normal text-stone-500 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded leading-none flex-shrink-0" title={`Incluso em ${formatarDataHora(item.criadoEm)}`}>
-                            {formatarDataHora(item.criadoEm)}
+                          <span className="text-[11px] font-normal text-stone-500 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded leading-none flex-shrink-0" title={`Incluso em ${formatarData(item.criadoEm)}`}>
+                            {formatarData(item.criadoEm)}
                           </span>
                         )}
                       </div>
@@ -620,11 +620,8 @@ export default function GestaoComandas() {
                     <div className="flex items-end justify-between pt-2 border-t border-stone-200/60">
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Aberta em</p>
-                        <p className="text-xs font-bold text-stone-800 leading-tight">
+                        <p className="text-sm font-bold text-stone-800 leading-tight">
                           {formatarData(c.criadaEm)}
-                        </p>
-                        <p className="text-[11px] font-medium text-stone-500">
-                          às {formatarHora(c.criadaEm)}
                         </p>
                       </div>
                       <span className="text-stone-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all text-sm font-bold">→</span>
