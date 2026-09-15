@@ -14,18 +14,21 @@ const FORMAS = [
 const formatarData = (isoStr) => {
   if (!isoStr) return '--/--/----';
   const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--/--/----';
   return d.toLocaleDateString('pt-BR');
 };
 
 const formatarHora = (isoStr) => {
   if (!isoStr) return '--:--';
   const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--:--';
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
 const formatarDataHora = (isoStr) => {
   if (!isoStr) return '--/-- às --:--';
   const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--/-- às --:--';
   return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 };
 
@@ -417,7 +420,14 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <span className="text-stone-400 text-xs font-bold w-5 text-center flex-shrink-0">{idx+1}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="text-base font-bold text-stone-900 leading-tight">{item.nome}</span>
+                        {item.criadoEm && (
+                          <span className="text-[11px] font-normal text-stone-500 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded leading-none flex-shrink-0" title={`Incluso em ${formatarDataHora(item.criadoEm)}`}>
+                            {formatarDataHora(item.criadoEm)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-stone-500 mt-0.5">
                         {isKG ? `${parseFloat(item.pesoKg).toFixed(3)} kg` : `${parseFloat(item.pesoKg)} un`}
                         <span className="mx-1 text-stone-300">×</span>
