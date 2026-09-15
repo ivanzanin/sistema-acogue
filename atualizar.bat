@@ -15,11 +15,18 @@ cd /d "%ROOT%"
 where git >nul 2>&1
 if %errorlevel% equ 0 (
     if exist ".git" (
-        echo [1/2] Baixando novidades do repositorio...
+        echo [1/3] Baixando novidades do repositorio...
         git pull origin main
         echo.
     )
 )
 
-echo [2/2] Recompilando e reiniciando sistema...
+echo [2/3] Verificando dependencias do frontend...
+cd /d "%ROOT%frontend"
+if not exist "node_modules\qrcode" (
+    echo       Instalando pacote qrcode...
+    call npm install
+)
+
+echo [3/3] Recompilando e reiniciando sistema...
 call "%ROOT%iniciar.bat"

@@ -96,8 +96,8 @@ echo       OK
 :: [3] Frontend deps
 echo [3/5] Frontend - verificando dependencias...
 cd /d "%ROOT%frontend"
-if not exist "node_modules" (
-    echo       Instalando dependencias frontend...
+if not exist "node_modules\qrcode" (
+    echo       Instalando novas dependencias frontend ^(qrcode^)...
     call npm install
     if errorlevel 1 ( echo [ERRO] npm install frontend falhou && pause && exit /b 1 )
 )
@@ -107,8 +107,15 @@ echo       OK
 echo [4/5] Compilando frontend...
 cd /d "%ROOT%frontend"
 call node_modules\.bin\vite.cmd build
-if errorlevel 1 ( echo [ERRO] Build falhou && pause && exit /b 1 )
-echo       Build concluido!
+if errorlevel 1 (
+    if exist "%ROOT%backend\public\index.html" (
+        echo       [AVISO] Compilacao local falhou, utilizando versao pre-compilada em backend\public...
+    ) else (
+        echo [ERRO] Build falhou e nao ha versao compilada em backend\public && pause && exit /b 1
+    )
+) else (
+    echo       Build concluido!
+)
 
 :: [5] Backend
 echo [5/5] Subindo Backend na porta 3000...
