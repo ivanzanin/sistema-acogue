@@ -28,7 +28,7 @@ cd /d "%ROOT%\backend"
 if exist backend_err.log del backend_err.log
 if exist backend.log     del backend.log
 
-powershell -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
+powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
 
 :: Aguarda backend inicializar na porta 3000
 set TRIES=0
@@ -55,7 +55,7 @@ timeout /t 10 /nobreak > nul
 netstat -ano 2>nul | findstr :3000 | findstr LISTENING > nul
 if errorlevel 1 (
     cd /d "%ROOT%\backend"
-    powershell -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
+    powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
     timeout /t 5 /nobreak > nul
 )
 goto :loop

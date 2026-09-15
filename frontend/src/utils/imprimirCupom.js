@@ -5,7 +5,7 @@ const FORMA_LABEL = {
   CREDITO:  'Cartao Credito',
 };
 
-export function imprimirCupom(itensCarrinho, total, nomeAcougue, formaPagamento = 'DINHEIRO', valorPago = 0, troco = 0) {
+export function imprimirCupom(itensCarrinho, total, nomeAcougue, formaPagamento = 'DINHEIRO', valorPago = 0, troco = 0, pagamentos = null) {
   const agora = new Date();
   const data  = agora.toLocaleDateString('pt-BR');
   const hora  = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -25,15 +25,35 @@ export function imprimirCupom(itensCarrinho, total, nomeAcougue, formaPagamento 
   `;
   }).join('');
 
-  const pagamentoHtml = `
-    <div class="pagamento">
-      <div class="row"><span>Forma de Pagamento</span><span>${FORMA_LABEL[formaPagamento] || formaPagamento}</span></div>
-      ${formaPagamento === 'DINHEIRO' && valorPago > 0 ? `
-      <div class="row"><span>Valor Recebido</span><span>R$ ${parseFloat(valorPago).toFixed(2)}</span></div>
-      <div class="row troco"><span>Troco</span><span>R$ ${parseFloat(troco).toFixed(2)}</span></div>
-      ` : ''}
-    </div>
-  `;
+  let pagamentoHtml = '';
+  if (Array.isArray(pagamentos) && pagamentos.length > 1) {
+    pagamentoHtml = `
+      <div class="pagamento">
+        <div class="row" style="font-weight:bold;margin-bottom:3px;border-bottom:1px dashed #bbb;padding-bottom:2px;">
+          <span>Divisao de Pagamento (${pagamentos.length} pessoas)</span>
+        </div>
+        ${pagamentos.map(p => `
+          <div class="row">
+            <span>${p.nome || p.pessoa || 'Pessoa'}: ${FORMA_LABEL[p.forma] || p.forma}</span>
+            <span style="font-weight:bold;">R$ ${parseFloat(p.valor).toFixed(2)}</span>
+          </div>
+        `).join('')}
+        ${troco > 0 ? `
+        <div class="row troco"><span>Troco</span><span>R$ ${parseFloat(troco).toFixed(2)}</span></div>
+        ` : ''}
+      </div>
+    `;
+  } else {
+    pagamentoHtml = `
+      <div class="pagamento">
+        <div class="row"><span>Forma de Pagamento</span><span>${FORMA_LABEL[formaPagamento] || formaPagamento}</span></div>
+        ${formaPagamento === 'DINHEIRO' && valorPago > 0 ? `
+        <div class="row"><span>Valor Recebido</span><span>R$ ${parseFloat(valorPago).toFixed(2)}</span></div>
+        <div class="row troco"><span>Troco</span><span>R$ ${parseFloat(troco).toFixed(2)}</span></div>
+        ` : ''}
+      </div>
+    `;
+  }
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Cupom</title>
   <style>

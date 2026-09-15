@@ -56,11 +56,66 @@ exports.registrarDesossa = async (req, res) => {
 exports.registrarVenda = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    const { itens, formaPagamento = 'DINHEIRO', valorPago = 0 } = req.body;
+    const { itens, formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos } = req.body;
     if (!Array.isArray(itens) || itens.length === 0)
       return res.status(400).json({ erro: 'Array de itens obrigatorio.' });
-    if (!['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'].includes(formaPagamento))
-      return res.status(400).json({ erro: 'Forma de pagamento invalida.' });
+
+    let finalForma = formaPagamento;
+    let finalPagamentosJson = null;
+    const totalVenda = itens.reduce((s, i) => s + (toFloat(i.total) || 0), 0);
+    let vp = toFloat(valorPago) || 0;
+    let troco = 0;
+
+    if (Array.isArray(pagamentos) && pagamentos.length > 0) {
+      const formasValidas = ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'];
+      let somaPags = 0;
+      let totalDinheiroDevido = 0;
+      let totalDinheiroPago = 0;
+
+      for (const p of pagamentos) {
+        if (!formasValidas.includes(p.forma))
+          return res.status(400).json({ erro: `Forma de pagamento invalida: ${p.forma}` });
+        const val = toFloat(p.valor) || 0;
+        if (val <= 0)
+          return res.status(400).json({ erro: 'Cada pagamento deve ter valor maior que zero.' });
+        somaPags += val;
+
+        if (p.forma === 'DINHEIRO') {
+          totalDinheiroDevido += val;
+          const vpItem = toFloat(p.valorPago);
+          if (vpItem && vpItem > 0) {
+            totalDinheiroPago += vpItem;
+          } else {
+            totalDinheiroPago += val;
+          }
+        }
+      }
+
+      if (Math.abs(somaPags - totalVenda) > 0.05) {
+        return res.status(400).json({
+          erro: `A soma dos pagamentos (R$ ${somaPags.toFixed(2)}) nao confere com o total da venda (R$ ${totalVenda.toFixed(2)}).`
+        });
+      }
+
+      const primeiraForma = pagamentos[0].forma;
+      const todasIguais = pagamentos.every(p => p.forma === primeiraForma);
+      finalForma = todasIguais ? primeiraForma : 'MULTIPLO';
+      finalPagamentosJson = JSON.stringify(pagamentos);
+
+      if (totalDinheiroPago > totalDinheiroDevido) {
+        troco = Math.max(0, totalDinheiroPago - totalDinheiroDevido);
+        vp = totalVenda + troco;
+      } else {
+        vp = totalVenda;
+        troco = 0;
+      }
+    } else {
+      if (!['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO'].includes(formaPagamento))
+        return res.status(400).json({ erro: 'Forma de pagamento invalida.' });
+      vp = toFloat(valorPago) || totalVenda;
+      troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalVenda) : 0;
+      finalPagamentosJson = JSON.stringify([{ forma: formaPagamento, valor: totalVenda, valorPago: vp, troco }]);
+    }
 
     // Verificar e preparar decrementos
     const ops = [];
@@ -105,13 +160,18 @@ exports.registrarVenda = async (req, res) => {
       }
     }
 
-    const totalVenda = itens.reduce((s, i) => s + (toFloat(i.total) || 0), 0);
-    const vp = toFloat(valorPago) || totalVenda;
-    const troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalVenda) : 0;
-
     if (ops.length > 0) await prisma.$transaction(ops);
     const novaVenda = await prisma.caixa.create({
-      data: { data: inicioDia(), valorTotal: totalVenda, itensJson: JSON.stringify(itens), formaPagamento, valorPago: vp, troco, tenantId }
+      data: {
+        data: inicioDia(),
+        valorTotal: totalVenda,
+        itensJson: JSON.stringify(itens),
+        formaPagamento: finalForma,
+        valorPago: vp,
+        troco,
+        tenantId,
+        pagamentosJson: finalPagamentosJson,
+      }
     });
     res.json({ mensagem: 'Venda registrada.', vendaId: novaVenda.id, total: totalVenda, troco });
   } catch (e) {
@@ -154,14 +214,29 @@ exports.resumoCaixaHoje = async (req, res) => {
     });
     const ativas   = vendas.filter(v => !v.cancelado);
     const totalDia = ativas.reduce((s, v) => s + v.valorTotal, 0);
-    const porForma = {};
-    for (const v of ativas) porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
+    for (const v of ativas) {
+      if (v.pagamentosJson) {
+        try {
+          const pags = JSON.parse(v.pagamentosJson);
+          if (Array.isArray(pags) && pags.length > 0) {
+            for (const p of pags) {
+              const f = p.forma || 'DINHEIRO';
+              porForma[f] = (porForma[f] || 0) + (toFloat(p.valor) || 0);
+            }
+            continue;
+          }
+        } catch (e) {}
+      }
+      porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    }
 
     res.json({
       totalDia, porForma, totalCanceladas: vendas.filter(v => v.cancelado).length,
       ultimasVendas: vendas.slice(0, 20).map(v => ({
         id: v.id, horario: v.createdAt, total: v.valorTotal,
         formaPagamento: v.formaPagamento, troco: v.troco, cancelado: v.cancelado,
+        pagamentos: (() => { try { return v.pagamentosJson ? JSON.parse(v.pagamentosJson) : null; } catch { return null; } })(),
         itens: (() => { try { return JSON.parse(v.itensJson); } catch { return []; } })(),
       })),
     });

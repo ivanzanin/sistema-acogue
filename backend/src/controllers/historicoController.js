@@ -25,6 +25,7 @@ exports.historico = async (req, res) => {
       faturamentoTotal: faturamento._sum.valorTotal || 0,
       vendas: vendas.map(v => ({
         id: v.id, data: v.createdAt, total: v.valorTotal, cancelado: v.cancelado, formaPagamento: v.formaPagamento,
+        pagamentos: (() => { try { return v.pagamentosJson ? JSON.parse(v.pagamentosJson) : null; } catch { return null; } })(),
         itens: (() => { try { return JSON.parse(v.itensJson); } catch { return []; } })()
       }))
     });

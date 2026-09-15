@@ -4,40 +4,7 @@ import api from '../utils/api';
 import { imprimirCupom } from '../utils/imprimirCupom';
 import { gerarPayloadPix, gerarQrCodePixDataUrl } from '../utils/pix';
 
-function DividirContaPdv({ total }) {
-  const [aberto, setAberto] = React.useState(false);
-  const [pessoas, setPessoas] = React.useState(2);
-  const porPessoa = pessoas > 0 ? total / pessoas : total;
-  if (!aberto) {
-    return (
-      <button onClick={() => setAberto(true)}
-        className="text-xs text-stone-400 hover:text-stone-600 underline underline-offset-2 mt-1 mb-1">
-        🍽️ Dividir conta
-      </button>
-    );
-  }
-  return (
-    <div className="mt-1 mb-1 p-2 bg-stone-50 rounded border border-stone-200 flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-xs text-stone-600">
-        <span>Dividir entre</span>
-        <button onClick={() => setPessoas(p => Math.max(2, p - 1))}
-          className="w-5 h-5 rounded-full border border-stone-300 bg-white font-bold text-sm leading-none">−</button>
-        <input type="number" value={pessoas} min="2"
-          onChange={e => setPessoas(Math.max(2, parseInt(e.target.value) || 2))}
-          className="w-10 text-center px-1 py-0.5 border border-stone-200 rounded font-bold text-xs" />
-        <button onClick={() => setPessoas(p => p + 1)}
-          className="w-5 h-5 rounded-full border border-stone-300 bg-white font-bold text-sm leading-none">+</button>
-        <span>pessoas</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="font-bold text-emerald-700 font-mono text-sm">R$ {porPessoa.toFixed(2)} cada</span>
-        <button onClick={() => setAberto(false)}
-          className="text-stone-400 hover:text-stone-600 text-base leading-none">×</button>
-      </div>
-    </div>
-  );
-}
-
+// Formas de pagamento suportadas no PDV
 const FORMAS = [
   { id: 'DINHEIRO', label: 'Dinheiro', icon: '💵', cor: 'border-emerald-500 bg-emerald-500/10 text-emerald-700' },
   { id: 'PIX',      label: 'PIX',      icon: '📱', cor: 'border-blue-500 bg-blue-500/10 text-blue-700' },
@@ -408,6 +375,10 @@ export default function PdvBalanca() {
   const [flashCodigo, setFlashCodigo]         = useState(null);
   const [codigoNaoEncontrado, setCodigoNaoEncontrado] = useState(null); // {codigo}
   const [vincularProduto, setVincularProduto] = useState(null); // produto selecionado pra vincular
+  const [modoDividido, setModoDividido]       = useState(false);
+  const [numPessoas, setNumPessoas]           = useState(2);
+  const [divisoes, setDivisoes]               = useState([]);
+  const [pixModalInfo, setPixModalInfo]       = useState(null);
   const buscaRef = useRef(null);
 
   // Barcode scanner state
@@ -432,6 +403,61 @@ export default function PdvBalanca() {
   const totalGeral = itensCarrinho.reduce((s, i) => s + i.total, 0);
   const troco = formaPagamento === 'DINHEIRO' && parseFloat(valorPago) > totalGeral
     ? parseFloat(valorPago) - totalGeral : 0;
+
+  // Gerador de divisões da conta
+  const gerarDivisoes = (qtd, totalAtual, existentes = []) => {
+    const qtdNum = Math.max(2, Math.min(30, parseInt(qtd) || 2));
+    const valorBase = Math.floor((totalAtual / qtdNum) * 100) / 100;
+    const diferencaCentavos = Math.round((totalAtual - valorBase * qtdNum) * 100);
+
+    const lista = [];
+    for (let i = 0; i < qtdNum; i++) {
+      const ext = existentes[i];
+      const valorItem = i < diferencaCentavos ? +(valorBase + 0.01).toFixed(2) : valorBase;
+      lista.push({
+        id: ext ? ext.id : i + 1,
+        nome: ext?.nome || `Pessoa ${i + 1}`,
+        forma: ext?.forma || formaPagamento || 'DINHEIRO',
+        valor: ext && ext.valor !== undefined ? ext.valor : valorItem,
+        valorPago: ext?.valorPago || '',
+      });
+    }
+    return lista;
+  };
+
+  const ativarDivisao = () => {
+    setDivisoes(gerarDivisoes(numPessoas, totalGeral, []));
+    setModoDividido(true);
+  };
+
+  const mudarNumPessoas = (novaQtd) => {
+    const n = Math.max(2, Math.min(30, parseInt(novaQtd) || 2));
+    setNumPessoas(n);
+    setDivisoes(gerarDivisoes(n, totalGeral, divisoes));
+  };
+
+  const redistribuirIgualmente = () => {
+    setDivisoes(gerarDivisoes(numPessoas, totalGeral, []));
+  };
+
+  const atualizarDivisao = (id, campo, valor) => {
+    setDivisoes(prev => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));
+  };
+
+  const aplicarFormaATodos = (fId) => {
+    setDivisoes(prev => prev.map(d => ({ ...d, forma: fId })));
+  };
+
+  const somaDivisoes = divisoes.reduce((acc, d) => acc + (parseFloat(d.valor) || 0), 0);
+  const diferencaDivisao = +(totalGeral - somaDivisoes).toFixed(2);
+
+  const resumoFormasDivisao = divisoes.reduce((acc, d) => {
+    const f = d.forma || 'DINHEIRO';
+    if (!acc[f]) acc[f] = { qtd: 0, total: 0 };
+    acc[f].qtd += 1;
+    acc[f].total += (parseFloat(d.valor) || 0);
+    return acc;
+  }, {});
 
   useEffect(() => {
     api.get('/produtos').then(({ data }) => setProdutos(data)).catch(() => setProdutos([]));
@@ -590,12 +616,22 @@ export default function PdvBalanca() {
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F9') { e.preventDefault(); setItemDiversosAberto(true); }
-      if (e.key === 'F10' && itensCarrinho.length > 0 && !salvando) { e.preventDefault(); setConfirmar(true); }
-      if (e.key === 'Escape') { setProdutoKGPendente(null); setItemDiversosAberto(false); setConfirmar(false); }
+      if (e.key === 'F10' && itensCarrinho.length > 0 && !salvando) {
+        e.preventDefault();
+        if (confirmar) {
+          finalizarVenda();
+        } else {
+          setConfirmar(true);
+        }
+      }
+      if (e.key === 'Escape') {
+        if (pixModalInfo) { setPixModalInfo(null); return; }
+        setProdutoKGPendente(null); setItemDiversosAberto(false); setConfirmar(false);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [itensCarrinho, salvando]);
+  }, [itensCarrinho, salvando, confirmar, pixModalInfo, modoDividido, divisoes, valorPago, totalGeral]);
 
   const adicionarKGManual = (produto, peso) => {
     setItensCarrinho(prev => [...prev, {
@@ -628,23 +664,60 @@ export default function PdvBalanca() {
 
   const finalizarVenda = async () => {
     if (itensCarrinho.length === 0 || salvando) return;
-    if (formaPagamento === 'DINHEIRO' && parseFloat(valorPago) < totalGeral && valorPago !== '')
-      return setErroVenda('Valor pago insuficiente.');
+
+    let payloadVenda = {
+      itens: itensCarrinho.map(i => ({
+        nome: i.nome, peso: i.peso, precoKg: i.precoKg, total: i.total,
+        unidade: i.unidade || 'UN', produtoId: i.id,
+      }))
+    };
+
+    let pagamentosParaCupom = null;
+
+    if (modoDividido) {
+      if (Math.abs(diferencaDivisao) > 0.05) {
+        return setErroVenda(`A soma das pessoas (R$ ${somaDivisoes.toFixed(2)}) não bate com o total (R$ ${totalGeral.toFixed(2)}). Ajuste os valores.`);
+      }
+
+      for (const d of divisoes) {
+        if (d.forma === 'DINHEIRO' && d.valorPago && parseFloat(d.valorPago) < parseFloat(d.valor)) {
+          return setErroVenda(`${d.nome}: valor entregue em dinheiro é menor que a cota.`);
+        }
+      }
+
+      const pags = divisoes.map(d => ({
+        forma: d.forma,
+        valor: parseFloat(d.valor) || 0,
+        nome: d.nome,
+        valorPago: d.forma === 'DINHEIRO' && d.valorPago ? parseFloat(d.valorPago) : undefined,
+      }));
+
+      payloadVenda.pagamentos = pags;
+      pagamentosParaCupom = pags;
+    } else {
+      if (formaPagamento === 'DINHEIRO' && parseFloat(valorPago) < totalGeral && valorPago !== '')
+        return setErroVenda('Valor pago insuficiente.');
+      payloadVenda.formaPagamento = formaPagamento;
+      payloadVenda.valorPago = parseFloat(valorPago) || totalGeral;
+    }
+
     setConfirmar(false); setSalvando(true); setErroVenda(null);
     try {
-      const { data } = await api.post('/gestao/venda', {
-        itens: itensCarrinho.map(i => ({
-          nome: i.nome, peso: i.peso, precoKg: i.precoKg, total: i.total,
-          unidade: i.unidade || 'UN', produtoId: i.id,
-        })),
-        formaPagamento,
-        valorPago: parseFloat(valorPago) || totalGeral,
-      });
+      const { data } = await api.post('/gestao/venda', payloadVenda);
       setUltimaVendaId(data.vendaId);
-      imprimirCupom(itensCarrinho, totalGeral, cliente?.nomeAcougue, formaPagamento, parseFloat(valorPago) || totalGeral, data.troco || 0);
+      imprimirCupom(
+        itensCarrinho,
+        totalGeral,
+        cliente?.nomeAcougue,
+        modoDividido ? 'MULTIPLO' : formaPagamento,
+        modoDividido ? totalGeral : (parseFloat(valorPago) || totalGeral),
+        data.troco || 0,
+        pagamentosParaCupom
+      );
       setVendaFinalizada(true);
       setTimeout(() => {
         setItensCarrinho([]); setVendaFinalizada(false); setValorPago(''); setFormaPagamento('DINHEIRO'); setErroVenda(null);
+        setModoDividido(false);
         sessionStorage.removeItem('pdv_carrinho');
         sessionStorage.removeItem('pdv_forma');
         sessionStorage.removeItem('pdv_valorpago');
@@ -728,60 +801,310 @@ export default function PdvBalanca() {
 
       {/* MODAL FINALIZAR */}
       {confirmar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm">
-          <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-md shadow-modal">
-            <p className="text-sm font-bold text-stone-900 mb-5 text-center">Finalizar Venda</p>
-            <div className="grid grid-cols-4 gap-2 mb-5">
-              {FORMAS.map(f => (
-                <button key={f.id} onClick={() => { setFormaPagamento(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
-                  className={`flex flex-col items-center py-3 rounded-lg border-2 text-xs font-bold uppercase tracking-wide transition-all ${formaPagamento === f.id ? f.cor : 'border-stone-300 text-stone-500 hover:border-stone-400'}`}>
-                  <span className="text-xl mb-1">{f.icon}</span>{f.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-between items-center text-sm mb-1">
-              <span className="text-stone-600">Total</span>
-              <span className="text-2xl font-bold text-stone-900">R$ {totalGeral.toFixed(2)}</span>
-            </div>
-            <DividirContaPdv total={totalGeral} />
-            <div className="mb-4" />
-
-            {/* SEÇÃO PIX DINÂMICO */}
-            {formaPagamento === 'PIX' && (
-              <SecaoPixPdv total={totalGeral} cliente={cliente} />
-            )}
-            {formaPagamento === 'DINHEIRO' && (
-              <div className="mb-4">
-                <label className="block text-xs text-stone-500 font-medium mb-1">Valor Recebido</label>
-                <input type="number" value={valorPago} onChange={e => setValorPago(e.target.value)}
-                  placeholder={totalGeral.toFixed(2)} autoFocus
-                  className="w-full bg-stone-100 border border-stone-300 rounded px-4 py-3 text-stone-900 text-xl font-bold focus:outline-none focus:border-brand-500 font-mono text-right"
-                  onKeyDown={e => e.key === 'Enter' && finalizarVenda()} />
-                {troco > 0 && (
-                  <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 flex justify-between">
-                    <span className="text-emerald-700 text-xs font-semibold">Troco</span>
-                    <span className="text-emerald-700 text-2xl font-bold">R$ {troco.toFixed(2)}</span>
-                  </div>
-                )}
-                {parseFloat(valorPago) > 0 && parseFloat(valorPago) < totalGeral && (
-                  <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-center">
-                    <p className="text-red-700 text-xs font-bold">Falta R$ {(totalGeral - parseFloat(valorPago)).toFixed(2)}</p>
-                  </div>
-                )}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white border border-stone-200 rounded-xl p-5 w-full max-w-lg shadow-modal max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-3 flex-shrink-0">
+              <div>
+                <p className="text-base font-bold text-stone-900">Finalizar Venda</p>
+                <p className="text-[11px] text-stone-500">Confirme o recebimento e os métodos de pagamento</p>
               </div>
-            )}
-            {erroVenda && <p className="mb-3 text-red-700 text-xs bg-red-50 border border-red-200 rounded px-3 py-2">{erroVenda}</p>}
-            <div className="flex gap-3">
-              <button onClick={finalizarVenda}
-                disabled={formaPagamento === 'DINHEIRO' && parseFloat(valorPago) < totalGeral && valorPago !== ''}
-                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded transition-all">
-                Confirmar (F10)
+              <div className="text-right">
+                <span className="text-[11px] text-stone-500 font-medium block">Total Geral</span>
+                <span className="text-2xl font-bold text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              {!modoDividido ? (
+                <>
+                  {/* Seletor de Forma de Pagamento Única */}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {FORMAS.map(f => (
+                      <button key={f.id} onClick={() => { setFormaPagamento(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
+                        className={`flex flex-col items-center py-2.5 rounded-lg border-2 text-xs font-bold uppercase tracking-wide transition-all ${formaPagamento === f.id ? f.cor : 'border-stone-300 text-stone-500 hover:border-stone-400'}`}>
+                        <span className="text-xl mb-1">{f.icon}</span>{f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Card para Ativar Divisão da Conta */}
+                  <div className="mb-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <span>🍽️</span> Dividir conta entre várias pessoas?
+                      </span>
+                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                        Receba de cada pessoa com um método diferente (ex: 2 no PIX, 3 no cartão).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={ativarDivisao}
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded shadow-sm transition-all flex items-center gap-1 flex-shrink-0"
+                    >
+                      <span>Dividir</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+
+                  {/* SEÇÃO PIX DINÂMICO */}
+                  {formaPagamento === 'PIX' && (
+                    <SecaoPixPdv total={totalGeral} cliente={cliente} />
+                  )}
+
+                  {/* SEÇÃO DINHEIRO */}
+                  {formaPagamento === 'DINHEIRO' && (
+                    <div className="mb-3">
+                      <label className="block text-xs text-stone-500 font-medium mb-1">Valor Recebido</label>
+                      <input type="number" value={valorPago} onChange={e => setValorPago(e.target.value)}
+                        placeholder={totalGeral.toFixed(2)} autoFocus
+                        className="w-full bg-stone-100 border border-stone-300 rounded px-4 py-2.5 text-stone-900 text-xl font-bold focus:outline-none focus:border-brand-500 font-mono text-right"
+                        onKeyDown={e => e.key === 'Enter' && finalizarVenda()} />
+                      {troco > 0 && (
+                        <div className="mt-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-2 flex justify-between items-center">
+                          <span className="text-emerald-700 text-xs font-semibold">Troco</span>
+                          <span className="text-emerald-700 text-xl font-bold font-mono">R$ {troco.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {parseFloat(valorPago) > 0 && parseFloat(valorPago) < totalGeral && (
+                        <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-center">
+                          <p className="text-red-700 text-xs font-bold">Falta R$ {(totalGeral - parseFloat(valorPago)).toFixed(2)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Banner Modo Dividido */}
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🍽️</span>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-900">Divisão de Conta Ativada</p>
+                        <p className="text-[11px] text-emerald-700">Selecione o método de pagamento individual de cada pessoa</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModoDividido(false)}
+                      className="text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 px-2 py-1 rounded transition-colors"
+                      title="Voltar ao pagamento único da conta toda"
+                    >
+                      ✕ Cancelar divisão
+                    </button>
+                  </div>
+
+                  {/* Controle de Pessoas e Reset */}
+                  <div className="flex items-center justify-between gap-2 mb-2.5 bg-stone-50 p-2 rounded-lg border border-stone-200">
+                    <div className="flex items-center gap-1.5 text-xs text-stone-700">
+                      <span className="font-semibold">Dividir em:</span>
+                      <button
+                        type="button"
+                        onClick={() => mudarNumPessoas(Math.max(2, numPessoas - 1))}
+                        className="w-6 h-6 rounded-full border border-stone-300 bg-white hover:bg-stone-100 font-bold text-sm leading-none flex items-center justify-center transition-colors"
+                      >−</button>
+                      <input
+                        type="number"
+                        min="2"
+                        max="30"
+                        value={numPessoas}
+                        onChange={e => mudarNumPessoas(Math.max(2, Math.min(30, parseInt(e.target.value) || 2)))}
+                        className="w-10 text-center py-0.5 border border-stone-300 rounded font-bold text-xs bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => mudarNumPessoas(Math.min(30, numPessoas + 1))}
+                        className="w-6 h-6 rounded-full border border-stone-300 bg-white hover:bg-stone-100 font-bold text-sm leading-none flex items-center justify-center transition-colors"
+                      >+</button>
+                      <span>pessoas</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={redistribuirIgualmente}
+                      className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold underline underline-offset-2"
+                      title="Divide o valor igualmente entre todas as pessoas"
+                    >
+                      R$ {(totalGeral / numPessoas).toFixed(2)} cada (Resetar)
+                    </button>
+                  </div>
+
+                  {/* Atalho para definir forma de todos */}
+                  <div className="flex items-center gap-1.5 mb-2 text-[11px] text-stone-500 overflow-x-auto pb-1">
+                    <span className="flex-shrink-0">Mudar todos:</span>
+                    {FORMAS.map(f => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => aplicarFormaATodos(f.id)}
+                        className="px-2 py-0.5 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium border border-stone-200 flex items-center gap-1 transition-colors flex-shrink-0"
+                      >
+                        <span>{f.icon}</span>
+                        <span>{f.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Lista de Pessoas / Divisões */}
+                  <div className="space-y-2 mb-3 max-h-56 overflow-y-auto pr-1">
+                    {divisoes.map((p, idx) => (
+                      <div key={p.id} className="p-2 rounded-lg border border-stone-200 bg-stone-50/70 hover:bg-stone-50 transition-colors">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-stone-200 text-[11px] font-bold text-stone-700 flex items-center justify-center">{idx + 1}</span>
+                            <input
+                              value={p.nome}
+                              onChange={e => atualizarDivisao(p.id, 'nome', e.target.value)}
+                              className="text-xs font-semibold text-stone-800 bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-stone-300 rounded px-1.5 py-0.5 w-28"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-stone-500">R$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={p.valor}
+                              onChange={e => atualizarDivisao(p.id, 'valor', parseFloat(e.target.value) || 0)}
+                              className="w-20 text-right px-2 py-0.5 border border-stone-300 rounded font-bold text-xs bg-white text-stone-900 font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 4 Métodos de Pagamento */}
+                        <div className="grid grid-cols-4 gap-1">
+                          {FORMAS.map(f => {
+                            const ativo = p.forma === f.id;
+                            return (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => atualizarDivisao(p.id, 'forma', f.id)}
+                                className={`py-1 px-1 rounded text-[11px] font-bold flex items-center justify-center gap-1 border transition-all ${
+                                  ativo ? f.cor : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                                }`}
+                              >
+                                <span>{f.icon}</span>
+                                <span className="truncate">{f.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Botão Ver QR Code PIX */}
+                        {p.forma === 'PIX' && (
+                          <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between">
+                            <span className="text-[11px] text-blue-700 font-medium">PIX: <strong>R$ {Number(p.valor || 0).toFixed(2)}</strong></span>
+                            <button
+                              type="button"
+                              onClick={() => setPixModalInfo({ nome: p.nome, valor: p.valor })}
+                              className="text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-0.5 rounded flex items-center gap-1 shadow-sm transition-colors"
+                            >
+                              <span>📱</span>
+                              <span>Ver QR Code</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Campo Dinheiro recebido e troco */}
+                        {p.forma === 'DINHEIRO' && (
+                          <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between text-xs">
+                            <span className="text-[11px] text-stone-600">Dinheiro entregue:</span>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder={Number(p.valor).toFixed(2)}
+                                value={p.valorPago}
+                                onChange={e => atualizarDivisao(p.id, 'valorPago', e.target.value)}
+                                className="w-20 text-right px-2 py-0.5 border border-stone-300 rounded font-mono text-xs bg-white"
+                              />
+                              {parseFloat(p.valorPago) > parseFloat(p.valor) && (
+                                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  Troco R$ {(parseFloat(p.valorPago) - parseFloat(p.valor)).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Resumo e Totalizador da Divisão */}
+                  <div className="mb-2 p-2 rounded-lg border text-xs flex flex-col gap-1 bg-stone-50 border-stone-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-stone-600">Total Distribuído:</span>
+                      <span className={`font-bold font-mono ${Math.abs(diferencaDivisao) <= 0.01 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        R$ {somaDivisoes.toFixed(2)} / R$ {totalGeral.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Breakdown por Forma */}
+                    <div className="pt-1 border-t border-stone-200 flex flex-wrap gap-1">
+                      {Object.entries(resumoFormasDivisao).map(([forma, item]) => item.total > 0 && (
+                        <span key={forma} className="bg-white border border-stone-200 text-stone-700 px-1.5 py-0.5 rounded text-[10px] font-medium flex items-center gap-1">
+                          <span>{FORMAS.find(f => f.id === forma)?.icon}</span>
+                          <span>{item.qtd}x {forma}:</span>
+                          <strong className="font-mono">R$ {item.total.toFixed(2)}</strong>
+                        </span>
+                      ))}
+                    </div>
+
+                    {Math.abs(diferencaDivisao) > 0.01 && (
+                      <div className="mt-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                        {diferencaDivisao > 0
+                          ? `⚠️ Falta distribuir R$ ${diferencaDivisao.toFixed(2)}`
+                          : `⚠️ Total excede a venda em R$ ${Math.abs(diferencaDivisao).toFixed(2)}`}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {erroVenda && <p className="mb-2 text-red-700 text-xs bg-red-50 border border-red-200 rounded px-3 py-1.5 flex-shrink-0">{erroVenda}</p>}
+
+            <div className="flex gap-2.5 pt-2.5 border-t border-stone-200 flex-shrink-0">
+              <button
+                onClick={finalizarVenda}
+                disabled={
+                  salvando ||
+                  (!modoDividido && formaPagamento === 'DINHEIRO' && parseFloat(valorPago) < totalGeral && valorPago !== '') ||
+                  (modoDividido && Math.abs(diferencaDivisao) > 0.05)
+                }
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded transition-all shadow-sm"
+              >
+                {salvando ? 'Processando...' : 'Confirmar (F10)'}
               </button>
-              <button onClick={() => { setConfirmar(false); setErroVenda(null); }}
-                className="flex-1 py-3.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded transition-all">
+              <button
+                onClick={() => { setConfirmar(false); setErroVenda(null); }}
+                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded transition-all"
+              >
                 Cancelar (Esc)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL QR CODE PIX INDIVIDUAL PARA QUEM PAGA NO PIX NA CONTA DIVIDIDA */}
+      {pixModalInfo && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white border border-stone-200 rounded-xl p-5 max-w-sm w-full shadow-2xl">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <p className="text-sm font-bold text-stone-900">QR Code PIX - {pixModalInfo.nome}</p>
+                <p className="text-xs text-stone-500">Valor individual: <strong className="text-blue-700 font-mono">R$ {Number(pixModalInfo.valor || 0).toFixed(2)}</strong></p>
+              </div>
+              <button onClick={() => setPixModalInfo(null)} className="text-stone-400 hover:text-stone-700 text-lg leading-none">✕</button>
+            </div>
+            <SecaoPixPdv total={Number(pixModalInfo.valor || 0)} cliente={cliente} />
+            <button
+              onClick={() => setPixModalInfo(null)}
+              className="w-full mt-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded transition-colors"
+            >
+              Fechar QR Code
+            </button>
           </div>
         </div>
       )}

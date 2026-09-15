@@ -46,7 +46,21 @@ exports.fecharCaixa = async (req, res) => {
     });
     const totalVendas = vendas.reduce((s, v) => s + v.valorTotal, 0);
     const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
-    for (const v of vendas) porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    for (const v of vendas) {
+      if (v.pagamentosJson) {
+        try {
+          const pags = JSON.parse(v.pagamentosJson);
+          if (Array.isArray(pags) && pags.length > 0) {
+            for (const p of pags) {
+              const f = p.forma || 'DINHEIRO';
+              porForma[f] = (porForma[f] || 0) + (toFloat(p.valor) || 0);
+            }
+            continue;
+          }
+        } catch (e) {}
+      }
+      porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    }
 
     const operacoes = await prisma.caixaOperacao.findMany({
       where: { tenantId, data: { gte: inicioDia() } }, orderBy: { data: 'asc' }
@@ -94,7 +108,21 @@ exports.statusCaixa = async (req, res) => {
     const sangrias  = operacoes.filter(o => o.tipo === 'SAIDA').reduce((s, o) => s + o.valor, 0);
     const suprimentos = operacoes.filter(o => o.tipo === 'ENTRADA').reduce((s, o) => s + o.valor, 0);
     const porForma = { DINHEIRO: 0, PIX: 0, DEBITO: 0, CREDITO: 0 };
-    for (const v of vendasAtivas) porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    for (const v of vendasAtivas) {
+      if (v.pagamentosJson) {
+        try {
+          const pags = JSON.parse(v.pagamentosJson);
+          if (Array.isArray(pags) && pags.length > 0) {
+            for (const p of pags) {
+              const f = p.forma || 'DINHEIRO';
+              porForma[f] = (porForma[f] || 0) + (toFloat(p.valor) || 0);
+            }
+            continue;
+          }
+        } catch (e) {}
+      }
+      porForma[v.formaPagamento] = (porForma[v.formaPagamento] || 0) + v.valorTotal;
+    }
 
     res.json({
       aberto, fechado, abertura, totalVendas, sangrias, suprimentos, porForma,
@@ -103,6 +131,7 @@ exports.statusCaixa = async (req, res) => {
       vendas: vendas.map(v => ({
         id: v.id, horario: v.createdAt, total: v.valorTotal,
         formaPagamento: v.formaPagamento, troco: v.troco, cancelado: v.cancelado,
+        pagamentos: (() => { try { return v.pagamentosJson ? JSON.parse(v.pagamentosJson) : null; } catch { return null; } })(),
         itens: (() => { try { return JSON.parse(v.itensJson); } catch { return []; } })(),
       }))
     });

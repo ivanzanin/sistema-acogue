@@ -79,6 +79,7 @@ model Caixa {
   tenantId       String
   tenant         ClienteTenant @relation(fields: [tenantId], references: [id])
   createdAt      DateTime      @default(now())
+  pagamentosJson String?
 }
 
 model CaixaOperacao {

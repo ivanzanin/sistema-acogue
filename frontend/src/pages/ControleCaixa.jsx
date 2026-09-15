@@ -4,8 +4,8 @@ import api from '../utils/api';
 import { imprimirFechamentoCaixa } from '../utils/imprimirCupom';
 
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳' };
-const FORMA_COR  = { DINHEIRO:'text-emerald-700', PIX:'text-blue-700', DEBITO:'text-purple-700', CREDITO:'text-orange-700' };
+const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳', MULTIPLO:'👥' };
+const FORMA_COR  = { DINHEIRO:'text-emerald-700', PIX:'text-blue-700', DEBITO:'text-purple-700', CREDITO:'text-orange-700', MULTIPLO:'text-indigo-700' };
 
 export default function ControleCaixa() {
   const navigate = useNavigate();
@@ -293,16 +293,22 @@ export default function ControleCaixa() {
                   })}
                   {/* Vendas do dia */}
                   {status.vendas?.map((v) => {
-                    const FORMA_ICON = { DINHEIRO:'💵', PIX:'📱', DEBITO:'💳', CREDITO:'💳' };
                     const podecancelar = !v.cancelado && new Date(v.horario).toDateString() === new Date().toDateString();
                     const ocupado = cancelando === v.id;
+                    const ehMultiplo = v.formaPagamento === 'MULTIPLO' || (v.pagamentos && v.pagamentos.length > 1);
+                    const detalhesPags = v.pagamentos ? v.pagamentos.map(p => `${p.nome || 'Pessoa'}: R$ ${Number(p.valor || 0).toFixed(2)} (${p.forma})`).join(' | ') : v.formaPagamento;
                     return (
                       <tr key={`v-${v.id}`} className={`group border-b border-stone-200/50 hover:bg-stone-100/20 ${v.cancelado ? 'opacity-40' : ''}`}>
                         <td className="py-3 px-5 text-xs text-stone-500 w-16">{new Date(v.horario).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td>
-                        <td className="py-3 px-5 w-32">
-                          <span className="text-xs font-bold text-stone-700 flex items-center gap-1">
-                            {FORMA_ICON[v.formaPagamento]} VENDA
+                        <td className="py-3 px-5 w-36">
+                          <span className="text-xs font-bold text-stone-700 flex items-center gap-1" title={detalhesPags}>
+                            {FORMA_ICON[v.formaPagamento] || '👥'} {ehMultiplo ? 'DIVIDIDA' : 'VENDA'}
                           </span>
+                          {v.pagamentos && v.pagamentos.length > 1 && (
+                            <p className="text-[10px] text-stone-600 truncate max-w-[130px] font-mono" title={detalhesPags}>
+                              {v.pagamentos.map(p => p.forma).join('+')}
+                            </p>
+                          )}
                         </td>
                         <td className="py-3 px-5 text-xs text-stone-500 truncate max-w-xs">
                           {v.cancelado ? <span className="text-red-700">CANCELADA</span> : v.itens?.map(i => {
