@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ClienteTenant {
+  id                 String            @id @default(uuid())
+  nomeAcougue        String
+  cnpj               String            @unique
+  nomeResponsavel    String
+  telefone           String
+  senha              String            @default("1234")
+  statusPagamento    String            @default("ATIVO")
+  diaVencimento      Int
+  valorMensal        Float
+  logoUrl            String?
+  dbConnectionString String            @unique
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  produtos           Produto[]
+  estoques           Estoque[]
+  caixas             Caixa[]
+  caixaOperacoes     CaixaOperacao[]
+  comandas           Comanda[]
+  fornecedores       Fornecedor[]
+  precosFornecedor   PrecoFornecedor[]
+  historicosPreco    HistoricoPreco[]
+  contasPagar        ContaPagar[]
+  sessoesAssados     SessaoAssados[]
+}
+
+model Produto {
+  id           Int               @id @default(autoincrement())
+  nome         String
+  precoVenda   Float
+  custo        Float             @default(0)
+  estoqueAtual Float             @default(0)
+  unidade      String            @default("KG")
+  categoria    String            @default("Bovino")
+  ativo        Boolean           @default(true)
+  validade     DateTime?
+  codigoBarras String?
+  tenantId     String
+  tenant       ClienteTenant     @relation(fields: [tenantId], references: [id])
+  itensComanda ItemComanda[]
+  precos          PrecoFornecedor[]
+  produtosAssados ProdutoAssado[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model Estoque {
+  id        Int           @id @default(autoincrement())
+  nomeCorte String
+  pesoKg    Float         @default(0)
+  validade  DateTime?
+  tenantId  String
+  tenant    ClienteTenant @relation(fields: [tenantId], references: [id])
+  updatedAt DateTime      @updatedAt
+
+  @@unique([nomeCorte, tenantId])
+}
+
+model Caixa {
+  id             Int           @id @default(autoincrement())
+  data           DateTime
+  valorTotal     Float
+  itensJson      String
+  formaPagamento String        @default("DINHEIRO")
+  valorPago      Float         @default(0)
+  troco          Float         @default(0)
+  cancelado      Boolean       @default(false)
+  canceladoEm    DateTime?
+  tenantId       String
+  tenant         ClienteTenant @relation(fields: [tenantId], references: [id])
+  createdAt      DateTime      @default(now())
+}
+
+model CaixaOperacao {
+  id         Int           @id @default(autoincrement())
+  tipo       String
+  valor      Float
+  observacao String        @default("")
+  data       DateTime
+  tenantId   String
+  tenant     ClienteTenant @relation(fields: [tenantId], references: [id])
+  createdAt  DateTime      @default(now())
+}
+
+model Comanda {
+  id          Int           @id @default(autoincrement())
+  nomeCliente String
+  numeroMesa  Int
+  status      String        @default("ABERTA")
+  total       Float         @default(0)
+  tenantId    String
+  tenant      ClienteTenant @relation(fields: [tenantId], references: [id])
+  itens       ItemComanda[]
+  criadaEm    DateTime      @default(now())
+  fechadaEm   DateTime?
+}
+
+model ItemComanda {
+  id        Int      @id @default(autoincrement())
+  comandaId Int
+  comanda   Comanda  @relation(fields: [comandaId], references: [id])
+  produtoId Int
+  produto   Produto  @relation(fields: [produtoId], references: [id])
+  nome      String
+  precoKg   Float
+  pesoKg    Float
+  total     Float
+  criadoEm  DateTime @default(now())
+}
+
+model Fornecedor {
+  id             Int               @id @default(autoincrement())
+  nome           String
+  cnpj           String?
+  vendedor       String?
+  telefone       String?
+  prazoPagamento String?
+  observacoes    String?
+  ativo          Boolean           @default(true)
+  tenantId       String
+  tenant         ClienteTenant     @relation(fields: [tenantId], references: [id])
+  precos         PrecoFornecedor[]
+  contasPagar    ContaPagar[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model PrecoFornecedor {
+  id            Int              @id @default(autoincrement())
+  fornecedorId  Int
+  fornecedor    Fornecedor       @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  produtoId     Int
+  produto       Produto          @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  unidade       String           @default("KG")
+  precoAtual    Float
+  precoAnterior Float?
+  tenantId      String
+  tenant        ClienteTenant    @relation(fields: [tenantId], references: [id])
+  historico     HistoricoPreco[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([fornecedorId, produtoId])
+}
+
+model HistoricoPreco {
+  id                Int             @id @default(autoincrement())
+  precoFornecedorId Int
+  precoFornecedor   PrecoFornecedor @relation(fields: [precoFornecedorId], references: [id], onDelete: Cascade)
+  preco             Float
+  data              DateTime        @default(now())
+  tenantId          String
+  tenant            ClienteTenant   @relation(fields: [tenantId], references: [id])
+}
+
+model ContaPagar {
+  id             Int           @id @default(autoincrement())
+  tenantId       String
+  tenant         ClienteTenant @relation(fields: [tenantId], references: [id])
+  fornecedorId   Int?
+  fornecedor     Fornecedor?   @relation(fields: [fornecedorId], references: [id])
+  descricao      String
+  valor          Float
+  categoria      String        @default("Outros")
+  dataEmissao    DateTime      @default(now())
+  dataVencimento DateTime
+  dataPagamento  DateTime?
+  formaPagamento String?
+  status         String        @default("PENDENTE")
+  observacoes    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model SessaoAssados {
+  id            Int                 @id @default(autoincrement())
+  tenantId      String
+  tenant        ClienteTenant       @relation(fields: [tenantId], references: [id])
+  status        String              @default("ABERTA")
+  totalAssados  Float               @default(0)
+  totalNormal   Float               @default(0)
+  abertoEm      DateTime            @default(now())
+  fechadoEm     DateTime?
+  produtos      ProdutoAssado[]
+  comandas      ComandaAssado[]
+  vendasDiretas VendaDiretaAssado[]
+}
+
+model ProdutoAssado {
+  id             Int           @id @default(autoincrement())
+  sessaoId       Int
+  sessao         SessaoAssados @relation(fields: [sessaoId], references: [id])
+  tenantId       String
+  nome           String
+  preco          Float
+  unidade        String        @default("UN")
+  estoqueInicial Float         @default(0)
+  estoqueAtual   Float         @default(0)
+  codigoBarras   String?
+  emoji           String?       @default("🔥")
+  produtoOrigemId Int?
+  produtoOrigem   Produto?      @relation(fields: [produtoOrigemId], references: [id])
+}
+
+model ComandaAssado {
+  id             Int                @id @default(autoincrement())
+  sessaoId       Int
+  sessao         SessaoAssados      @relation(fields: [sessaoId], references: [id])
+  tenantId       String
+  nomeCliente    String
+  telefone       String?
+  status         String             @default("RESERVADO")
+  pago           Boolean            @default(false)
+  formaPagamento String?
+  total          Float              @default(0)
+  observacoes    String?
+  itens          ItemComandaAssado[]
+  criadaEm       DateTime           @default(now())
+  entregueEm     DateTime?
+}
+
+model ItemComandaAssado {
+  id              Int           @id @default(autoincrement())
+  comandaId       Int
+  comanda         ComandaAssado @relation(fields: [comandaId], references: [id])
+  produtoAssadoId Int?
+  produtoNormalId Int?
+  nome            String
+  preco           Float
+  quantidade      Float
+  unidade         String        @default("UN")
+  total           Float
+  tipo            String        @default("ASSADO")
+}
+
+model VendaDiretaAssado {
+  id             Int           @id @default(autoincrement())
+  sessaoId       Int
+  sessao         SessaoAssados @relation(fields: [sessaoId], references: [id])
+  tenantId       String
+  itensJson      String
+  totalAssados   Float         @default(0)
+  totalNormal    Float         @default(0)
+  total          Float         @default(0)
+  formaPagamento String        @default("DINHEIRO")
+  valorPago      Float         @default(0)
+  criadaEm       DateTime      @default(now())
+}
+

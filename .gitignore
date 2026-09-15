@@ -1,8 +1,17 @@
-﻿# Environment & Secrets
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
 *.env
+
+# SQLite Databases & Backups (CRÍTICO: nunca versionar dados do cliente)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+backups/
+*.tmp*
 
 # Dependencies
 node_modules/
