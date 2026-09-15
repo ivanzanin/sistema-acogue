@@ -5,10 +5,11 @@ const { toFloat, toInt, getTenantId } = require('../lib/validate');
 exports.listar = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
+    const { ordem = 'desc' } = req.query;
     const comandas = await prisma.comanda.findMany({
       where: { tenantId, status: 'ABERTA' },
       include: { itens: { orderBy: { criadoEm: 'asc' } } },
-      orderBy: { criadaEm: 'asc' },
+      orderBy: { criadaEm: ordem === 'asc' ? 'asc' : 'desc' },
     });
     res.json(comandas);
   } catch (e) {
@@ -21,12 +22,8 @@ exports.criar = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { nomeCliente, numeroMesa } = req.body;
-    if (!nomeCliente?.trim() || !numeroMesa) return res.status(400).json({ erro: 'Nome e mesa obrigatorios.' });
-    const mesa = toInt(numeroMesa);
-    if (!mesa || mesa < 1) return res.status(400).json({ erro: 'Numero da mesa invalido.' });
-
-    const mesaAberta = await prisma.comanda.findFirst({ where: { tenantId, numeroMesa: mesa, status: 'ABERTA' } });
-    if (mesaAberta) return res.status(400).json({ erro: `Mesa ${mesa} ja aberta para ${mesaAberta.nomeCliente}.` });
+    if (!nomeCliente?.trim()) return res.status(400).json({ erro: 'Nome do cliente obrigatorio.' });
+    const mesa = toInt(numeroMesa) || 0;
 
     const comanda = await prisma.comanda.create({
       data: { nomeCliente: nomeCliente.trim(), numeroMesa: mesa, tenantId },

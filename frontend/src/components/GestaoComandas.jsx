@@ -11,18 +11,35 @@ const FORMAS = [
   { id: 'CREDITO',  label: 'Credito',  icon: '💳' },
 ];
 
+const formatarData = (isoStr) => {
+  if (!isoStr) return '--/--/----';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('pt-BR');
+};
+
+const formatarHora = (isoStr) => {
+  if (!isoStr) return '--:--';
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatarDataHora = (isoStr) => {
+  if (!isoStr) return '--/-- às --:--';
+  const d = new Date(isoStr);
+  return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+};
+
 // ─── MODAL NOVA COMANDA ───────────────────────────────────────────────────────
 function ModalNovaComanda({ onCriar, onFechar }) {
   const [nome, setNome] = useState('');
-  const [mesa, setMesa] = useState('');
   const [erro, setErro] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const salvar = async () => {
-    if (!nome.trim() || !mesa) return setErro('Preencha o nome e o numero da mesa.');
+    if (!nome.trim()) return setErro('Preencha o nome do cliente.');
     setBusy(true); setErro(null);
     try {
-      const { data } = await api.post('/comandas', { nomeCliente: nome, numeroMesa: mesa });
+      const { data } = await api.post('/comandas', { nomeCliente: nome.trim(), numeroMesa: 0 });
       onCriar(data);
     } catch (e) { setErro(e.response?.data?.erro || 'Erro ao criar comanda.'); }
     finally { setBusy(false); }
@@ -32,21 +49,18 @@ function ModalNovaComanda({ onCriar, onFechar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm">
       <div className="bg-white border border-stone-200 rounded-2xl p-8 w-full max-w-sm shadow-modal">
-        <p className="text-xs text-brand-700 font-semibold font-bold mb-6">Nova Comanda</p>
+        <p className="text-base text-stone-900 font-bold mb-1">Nova Comanda</p>
+        <p className="text-xs text-stone-500 mb-6">Informe o nome do cliente para abrir a comanda</p>
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-stone-500 font-medium mb-1.5">Nome do Cliente</label>
             <input value={nome} onChange={e => setNome(e.target.value)} autoFocus className={inp} placeholder="Ex: Joao Silva" onKeyDown={e => e.key === 'Enter' && salvar()} />
           </div>
-          <div>
-            <label className="block text-xs text-stone-500 font-medium mb-1.5">Numero da Mesa</label>
-            <input type="number" value={mesa} onChange={e => setMesa(e.target.value)} min="1" className={inp} placeholder="1" onKeyDown={e => e.key === 'Enter' && salvar()} />
-          </div>
           {erro && <p className="text-red-700 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erro}</p>}
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={salvar} disabled={busy} className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-xs font-medium rounded-lg transition-all active:scale-95">
-            {busy ? 'Criando...' : '+ Abrir Mesa'}
+          <button onClick={salvar} disabled={busy} className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-all active:scale-95 shadow-sm">
+            {busy ? 'Criando...' : '+ Abrir Comanda'}
           </button>
           <button onClick={onFechar} className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium rounded-lg transition-all">Cancelar</button>
         </div>
@@ -80,7 +94,7 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm">
       <div className="bg-white border border-stone-300 rounded-2xl p-7 w-full max-w-md shadow-2xl">
         <p className="text-xs text-brand-700 font-semibold font-bold mb-1">Fechar Comanda</p>
-        <p className="text-stone-600 text-sm mb-5">{comanda.nomeCliente} — Mesa {comanda.numeroMesa}</p>
+        <p className="text-stone-600 text-sm mb-5">{comanda.nomeCliente} — Aberta em {formatarDataHora(comanda.criadaEm)}</p>
         <div className="bg-stone-100 rounded-xl px-5 py-4 flex justify-between items-center mb-5">
           <span className="text-stone-600 text-sm">Total</span>
           <span className="text-3xl font-bold text-stone-900">{fmt(comanda.total)}</span>
@@ -305,7 +319,7 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
         <div className="text-right min-w-24">
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-1 mb-1">
             <p className="text-xs text-amber-900 font-bold leading-tight">{comanda.nomeCliente}</p>
-            <p className="text-[10px] text-amber-700">Mesa {comanda.numeroMesa}</p>
+            <p className="text-[10px] text-amber-700">Aberta em {formatarDataHora(comanda.criadaEm)}</p>
           </div>
           <p className="text-xs text-stone-500 font-medium">Total</p>
           <p className="text-xl font-bold text-stone-900">{fmt(comanda.total)}</p>
@@ -473,6 +487,7 @@ export default function GestaoComandas() {
   const [modalNova, setModalNova] = useState(false);
   const [mesaAberta, setMesaAberta] = useState(null);
   const [cancelandoId, setCancelandoId] = useState(null);
+  const [ordemData, setOrdemData] = useState('asc');
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -509,8 +524,8 @@ export default function GestaoComandas() {
   const cancelarComanda = async (comanda) => {
     const qntItens = comanda.itens?.length || 0;
     const msg = qntItens > 0
-      ? `Cancelar a comanda de ${comanda.nomeCliente} (Mesa ${comanda.numeroMesa})?\n\n${qntItens} item(s) — ${fmt(comanda.total)}\n\nA comanda sera removida sem cobrar e o estoque sera devolvido.`
-      : `Cancelar a comanda vazia de ${comanda.nomeCliente} (Mesa ${comanda.numeroMesa})?`;
+      ? `Cancelar a comanda de ${comanda.nomeCliente}?\n\n${qntItens} item(s) — ${fmt(comanda.total)}\n\nA comanda sera removida sem cobrar e o estoque sera devolvido.`
+      : `Cancelar a comanda vazia de ${comanda.nomeCliente}?`;
     if (!confirm(msg)) return;
     setCancelandoId(comanda.id);
     try {
@@ -520,6 +535,12 @@ export default function GestaoComandas() {
       alert(e.response?.data?.erro || 'Erro ao cancelar comanda.');
     } finally { setCancelandoId(null); }
   };
+
+  const comandasOrdenadas = [...comandas].sort((a, b) => {
+    const ta = new Date(a.criadaEm).getTime();
+    const tb = new Date(b.criadaEm).getTime();
+    return ordemData === 'desc' ? tb - ta : ta - tb;
+  });
 
   if (mesaAberta) {
     return (
@@ -540,16 +561,23 @@ export default function GestaoComandas() {
       <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 border-b border-stone-200 bg-white/95 backdrop-blur-sm">
         <div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Comandas</h1>
-          <p className="text-xs text-stone-500 mt-0.5">{comandas.length} mesa(s) abertas</p>
+          <p className="text-xs text-stone-500 mt-0.5">{comandas.length} comanda(s) aberta(s)</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={carregar} className="text-xs text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 px-4 py-2.5 rounded-lg transition-all">↻</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setOrdemData(prev => prev === 'asc' ? 'desc' : 'asc')}
+            title="Alternar ordem de exibição por data"
+            className="flex items-center gap-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 border border-stone-300 hover:border-stone-400 px-3 py-2.5 rounded-lg transition-all bg-stone-50 hover:bg-stone-100"
+          >
+            <span>{ordemData === 'asc' ? '⏳ Mais antigas 1º' : '⚡ Mais recentes 1º'}</span>
+          </button>
+          <button onClick={carregar} className="text-xs text-stone-600 hover:text-stone-900 border border-stone-300 hover:border-stone-400 px-4 py-2.5 rounded-lg transition-all" title="Atualizar">↻</button>
           <button onClick={() => navigate('/assados')}
-            className="bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all mr-2">
+            className="bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all">
             🔥 Assados
           </button>
           <button onClick={() => setModalNova(true)} className="bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold text-xs px-6 py-2.5 rounded-lg transition-all ">
-            + Novo Cliente
+            + Nova Comanda
           </button>
         </div>
       </div>
@@ -559,7 +587,7 @@ export default function GestaoComandas() {
           <div className="flex justify-center py-32 text-stone-600"><span className="animate-pulse text-sm">Carregando...</span></div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {comandas.map((c) => {
+            {comandasOrdenadas.map((c) => {
               const temItens = (c.itens?.length ?? 0) > 0;
               const ocupado = cancelandoId === c.id;
               return (
@@ -579,12 +607,17 @@ export default function GestaoComandas() {
                         <p className="text-xs text-stone-500 mt-1">{c.itens.length} item(s)</p>
                       </div>
                     )}
-                    <div className="flex items-end justify-between">
+                    <div className="flex items-end justify-between pt-2 border-t border-stone-200/60">
                       <div>
-                        <p className="text-xs text-stone-500 font-medium leading-none mb-0.5">Mesa</p>
-                        <p className={`text-3xl font-bold leading-none ${temItens ? 'text-amber-700' : 'text-stone-600 group-hover:text-zinc-200'}`}>{c.numeroMesa}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-0.5">Aberta em</p>
+                        <p className="text-xs font-bold text-stone-800 leading-tight">
+                          {formatarData(c.criadaEm)}
+                        </p>
+                        <p className="text-[11px] font-medium text-stone-500">
+                          às {formatarHora(c.criadaEm)}
+                        </p>
                       </div>
-                      <span className="text-stone-600 group-hover:text-stone-600 transition-colors text-xs">→</span>
+                      <span className="text-stone-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all text-sm font-bold">→</span>
                     </div>
                   </button>
 
@@ -602,15 +635,15 @@ export default function GestaoComandas() {
             <button onClick={() => setModalNova(true)}
               className="aspect-square flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 hover:border-brand-600/50 hover:bg-brand-600/5 text-stone-600 hover:text-amber-500 transition-all duration-200 hover:scale-105 active:scale-95 gap-2">
               <span className="text-4xl font-thin">+</span>
-              <span className="text-xs font-semibold">Nova Mesa</span>
+              <span className="text-xs font-semibold">Nova Comanda</span>
             </button>
           </div>
         )}
         {!loading && comandas.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-stone-600 gap-4 -mt-4">
-            <span className="text-6xl">🍽️</span>
-            <p className="text-sm font-bold">Nenhuma mesa aberta</p>
-            <button onClick={() => setModalNova(true)} className="mt-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-6 py-3 rounded-lg transition-all active:scale-95">+ Abrir Primeira Mesa</button>
+            <span className="text-6xl">📋</span>
+            <p className="text-sm font-bold">Nenhuma comanda aberta</p>
+            <button onClick={() => setModalNova(true)} className="mt-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-6 py-3 rounded-lg transition-all active:scale-95">+ Abrir Primeira Comanda</button>
           </div>
         )}
       </div>
