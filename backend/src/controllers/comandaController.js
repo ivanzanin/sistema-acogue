@@ -54,20 +54,66 @@ exports.buscar = async (req, res) => {
 exports.adicionarItem = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    const { produtoId, pesoKg } = req.body;
-    const qtd = toFloat(pesoKg);
+    const { produtoId, pesoKg, isDiversos, nome: nomeCustom, precoUnitario, precoKg: precoKgBody } = req.body;
+    const qtd = toFloat(pesoKg) || toFloat(req.body.qtd);
     const pId = toInt(produtoId);
+
+    const comanda = await prisma.comanda.findFirst({ where: { id: toInt(req.params.id), tenantId, status: 'ABERTA' } });
+    if (!comanda) return res.status(404).json({ erro: 'Comanda nao encontrada ou fechada.' });
+
+    // Se for item avulso / diversos (999)
+    if (isDiversos || pId === 999) {
+      const preco = toFloat(precoUnitario) || toFloat(precoKgBody);
+      if (!preco || preco <= 0) return res.status(400).json({ erro: 'Valor unitario invalido.' });
+      const quantidade = (!qtd || qtd <= 0) ? 1 : qtd;
+      const total = +(preco * quantidade).toFixed(2);
+      const nomeItem = (nomeCustom && String(nomeCustom).trim()) || 'Diversos';
+
+      // Localiza ou cria produto generico "Diversos" para o tenant
+      let produtoDiversos = await prisma.produto.findFirst({
+        where: { tenantId, OR: [{ codigoBarras: '999' }, { nome: 'Diversos' }] }
+      });
+      if (!produtoDiversos) {
+        produtoDiversos = await prisma.produto.create({
+          data: {
+            nome: 'Diversos',
+            precoVenda: 0,
+            unidade: 'UN',
+            categoria: 'Diversos',
+            codigoBarras: '999',
+            tenantId,
+            ativo: true,
+            estoqueAtual: 999999,
+          }
+        });
+      }
+
+      const ops = [
+        prisma.itemComanda.create({
+          data: {
+            comandaId: comanda.id,
+            produtoId: produtoDiversos.id,
+            nome: nomeItem,
+            precoKg: preco,
+            pesoKg: quantidade,
+            total,
+          }
+        }),
+        prisma.comanda.update({ where: { id: comanda.id }, data: { total: { increment: total } } }),
+      ];
+
+      await prisma.$transaction(ops);
+      const atualizada = await prisma.comanda.findUnique({ where: { id: comanda.id }, include: { itens: { orderBy: { criadoEm: 'asc' } } } });
+      return res.status(201).json(atualizada);
+    }
+
     if (!pId || !qtd || qtd <= 0) return res.status(400).json({ erro: 'Produto e quantidade validos obrigatorios.' });
 
-    const [comanda, produto] = await Promise.all([
-      prisma.comanda.findFirst({ where: { id: toInt(req.params.id), tenantId, status: 'ABERTA' } }),
-      prisma.produto.findFirst({ where: { id: pId, tenantId, ativo: true } }),
-    ]);
-    if (!comanda) return res.status(404).json({ erro: 'Comanda nao encontrada ou fechada.' });
+    const produto = await prisma.produto.findFirst({ where: { id: pId, tenantId, ativo: true } });
     if (!produto) return res.status(404).json({ erro: 'Produto nao encontrado.' });
 
     const isUN = produto.unidade === 'UN';
-    const total = qtd * produto.precoVenda;
+    const total = +(qtd * produto.precoVenda).toFixed(2);
 
     if (isUN && produto.estoqueAtual < qtd)
       return res.status(400).json({ erro: `Estoque insuficiente: ${produto.nome}. Disponivel: ${produto.estoqueAtual} un` });
@@ -107,11 +153,14 @@ exports.removerItem = async (req, res) => {
       prisma.comanda.update({ where: { id: toInt(req.params.id) }, data: { total: { decrement: item.total } } }),
     ];
 
-    if (item.produto?.unidade === 'UN') {
-      ops.push(prisma.produto.update({ where: { id: item.produtoId }, data: { estoqueAtual: { increment: item.pesoKg } } }));
-    } else {
-      const estoque = await prisma.estoque.findUnique({ where: { nomeCorte_tenantId: { nomeCorte: item.nome, tenantId } } });
-      if (estoque) ops.push(prisma.estoque.update({ where: { id: estoque.id }, data: { pesoKg: { increment: item.pesoKg } } }));
+    const isDiversos = item.produto?.codigoBarras === '999' || item.produto?.nome === 'Diversos';
+    if (!isDiversos) {
+      if (item.produto?.unidade === 'UN') {
+        ops.push(prisma.produto.update({ where: { id: item.produtoId }, data: { estoqueAtual: { increment: item.pesoKg } } }));
+      } else {
+        const estoque = await prisma.estoque.findUnique({ where: { nomeCorte_tenantId: { nomeCorte: item.nome, tenantId } } });
+        if (estoque) ops.push(prisma.estoque.update({ where: { id: estoque.id }, data: { pesoKg: { increment: item.pesoKg } } }));
+      }
     }
 
     await prisma.$transaction(ops);
@@ -187,7 +236,8 @@ exports.cancelar = async (req, res) => {
 
     // Estorna estoque dos itens UN consumidos
     for (const item of comanda.itens) {
-      if (item.produto?.unidade === 'UN') {
+      const isDiversos = item.produto?.codigoBarras === '999' || item.produto?.nome === 'Diversos';
+      if (!isDiversos && item.produto?.unidade === 'UN') {
         await prisma.produto.updateMany({
           where: { id: item.produtoId, tenantId },
           data: { estoqueAtual: { increment: item.pesoKg } },

@@ -191,12 +191,128 @@ function ModalPesoKG({ produto, pesoInicial, onConfirmar, onCancelar }) {
   );
 }
 
+// ─── MODAL ITEM DIVERSOS (999) ────────────────────────────────────────────────
+function ModalItemDiversos({ onConfirmar, onCancelar }) {
+  const [descricao, setDescricao] = useState('Diversos');
+  const [valor, setValor]         = useState('');
+  const [qtd, setQtd]             = useState(1);
+  const valorInputRef             = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => valorInputRef.current?.focus(), 100);
+  }, []);
+
+  const confirmar = () => {
+    const v = parseFloat(valor.replace(',', '.'));
+    if (!v || v <= 0) return;
+    const q = Math.max(1, parseInt(qtd) || 1);
+    onConfirmar({
+      descricao: descricao.trim() || 'Diversos',
+      valor: v,
+      qtd: q,
+    });
+  };
+
+  const vNum = parseFloat(valor.replace(',', '.')) || 0;
+  const totalItem = vNum * (parseInt(qtd) || 1);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
+      <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-2xl">🏷️</span>
+          <div>
+            <p className="text-base font-bold text-stone-900">Item Avulso / Diversos (999)</p>
+            <p className="text-xs text-stone-500">Adicionar produto com valor livre na comanda</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">Descrição do Item</label>
+            <input
+              type="text"
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              placeholder="Ex: Diversos, Tempero especial, Gelo..."
+              className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:border-amber-500 font-sans"
+              onKeyDown={e => { if (e.key === 'Enter') valorInputRef.current?.focus(); if (e.key === 'Escape') onCancelar(); }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">Valor Unitário (R$) *</label>
+            <input
+              ref={valorInputRef}
+              type="number"
+              step="0.01"
+              value={valor}
+              onChange={e => setValor(e.target.value)}
+              placeholder="0,00"
+              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-4 py-3 text-stone-900 text-2xl font-bold font-mono focus:outline-none focus:border-amber-500 text-right"
+              onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">Quantidade</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setQtd(q => Math.max(1, (parseInt(q) || 1) - 1))}
+                className="w-9 h-9 rounded-lg border border-stone-300 bg-stone-100 hover:bg-stone-200 font-bold text-base flex items-center justify-center">
+                −
+              </button>
+              <input
+                type="number"
+                min="1"
+                value={qtd}
+                onChange={e => setQtd(Math.max(1, parseInt(e.target.value) || 1))}
+                className="flex-1 text-center py-2 border border-stone-300 rounded-lg font-bold text-sm"
+                onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
+              />
+              <button
+                type="button"
+                onClick={() => setQtd(q => (parseInt(q) || 1) + 1)}
+                className="w-9 h-9 rounded-lg border border-stone-300 bg-stone-100 hover:bg-stone-200 font-bold text-base flex items-center justify-center">
+                +
+              </button>
+            </div>
+          </div>
+
+          {vNum > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
+              <span className="text-amber-800 font-medium">Total do item:</span>
+              <span className="font-bold text-amber-900 text-sm font-mono">R$ {totalItem.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={confirmar}
+            disabled={!vNum || vNum <= 0}
+            className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded-lg transition-all active:scale-95">
+            Adicionar (Enter)
+          </button>
+          <button
+            onClick={onCancelar}
+            className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded-lg transition-all">
+            Cancelar (Esc)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── VISÃO INTERNA DA MESA ────────────────────────────────────────────────────
 function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFechada }) {
   const [comanda, setComanda]     = useState(inicial);
   const [adicionando, setAdicionando] = useState(null);
   const [removendo, setRemovendo] = useState(null);
   const [modalFechar, setModalFechar] = useState(false);
+  const [itemDiversosAberto, setItemDiversosAberto] = useState(false);
   const [busca, setBusca]         = useState('');
   const [qtds, setQtds]           = useState({});
   const [pesoKG, setPesoKG]       = useState(null);
@@ -240,6 +356,23 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
     finally { setAdicionando(null); }
   };
 
+  const adicionarDiversos = async ({ descricao, valor, qtd }) => {
+    setErro(null);
+    try {
+      const { data } = await api.post(`/comandas/${comanda.id}/itens`, {
+        isDiversos: true,
+        produtoId: 999,
+        nome: descricao,
+        precoUnitario: valor,
+        pesoKg: qtd,
+      });
+      setComanda(data);
+      setItemDiversosAberto(false);
+    } catch (e) {
+      setErro(e.response?.data?.erro || 'Erro ao adicionar item avulso.');
+    }
+  };
+
   const removerItem = async (itemId) => {
     setRemovendo(itemId);
     try { await api.delete(`/comandas/${comanda.id}/itens/${itemId}`); await recarregar(); }
@@ -250,6 +383,10 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
   // ── Scanner ─────────────────────────────────────────────────
   const processarCodigo = useCallback(async (codigo) => {
     if (!codigo || codigo.length < 3) return;
+    if (codigo.trim() === '999') {
+      setItemDiversosAberto(true);
+      return;
+    }
     setFlashCodigo(codigo);
     setTimeout(() => setFlashCodigo(null), 1500);
     try {
@@ -268,6 +405,11 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === 'F9') {
+        e.preventDefault();
+        setItemDiversosAberto(true);
+        return;
+      }
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key === 'Enter') {
@@ -291,6 +433,13 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
     <div className="flex flex-col h-screen bg-page font-mono overflow-hidden">
       {modalFechar && (
         <ModalFecharComanda comanda={comanda} onFechado={() => { setModalFechar(false); onFechada(); }} onCancelar={() => setModalFechar(false)} />
+      )}
+
+      {itemDiversosAberto && (
+        <ModalItemDiversos
+          onConfirmar={adicionarDiversos}
+          onCancelar={() => setItemDiversosAberto(false)}
+        />
       )}
 
       {pesoKG && (
@@ -335,14 +484,27 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
 
         {/* LISTA MANUAL DE PRODUTOS */}
         <section className="w-2/5 flex flex-col border-r border-stone-200" style={{minWidth:0}}>
-          <div className="px-4 py-2 border-b border-stone-200 flex-shrink-0 bg-page">
+          <div className="px-4 py-2 border-b border-stone-200 flex-shrink-0 bg-page flex items-center justify-between">
             <p className="text-xs text-stone-500 font-medium">Ou selecione manualmente:</p>
+            <button
+              onClick={() => setItemDiversosAberto(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-2.5 py-1 rounded-md transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+              title="Adicionar item avulso com valor em aberto (Atalho: F9 ou digite 999)">
+              <span>🏷️</span>
+              <span>+ Diversos (999) [F9]</span>
+            </button>
           </div>
           <div className="px-4 py-3 border-b border-stone-200 flex-shrink-0">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">🔍</span>
               <input ref={buscaRef} value={busca} onChange={e => setBusca(e.target.value)}
-                placeholder="Buscar por nome, categoria ou código..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && busca.trim() === '999') {
+                    setBusca('');
+                    setItemDiversosAberto(true);
+                  }
+                }}
+                placeholder="Buscar produto ou digite '999' para diversos..."
                 className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-9 pr-4 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-amber-500 transition-colors"
               />
               {busca && <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700 text-lg">×</button>}
