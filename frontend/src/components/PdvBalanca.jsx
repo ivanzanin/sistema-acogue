@@ -380,7 +380,96 @@ export default function PdvBalanca() {
   const [numPessoas, setNumPessoas]           = useState(2);
   const [divisoes, setDivisoes]               = useState([]);
   const [pixModalInfo, setPixModalInfo]       = useState(null);
+  const [modoLayout, setModoLayout]           = useState(() => localStorage.getItem('pdv_layout_modo') || 'limpo');
+  const [buscaBaixo, setBuscaBaixo]           = useState('');
+  const [sugestoesAbertas, setSugestoesAbertas] = useState(false);
+  const [indiceSugerido, setIndiceSugerido]   = useState(0);
+  const [ultimoItemAdicionado, setUltimoItemAdicionado] = useState(null);
   const buscaRef = useRef(null);
+  const inputBaixoRef = useRef(null);
+  const sugestoesRef = useRef(null);
+
+  // Alterna e salva a preferência de layout
+  const alternarModoLayout = (modo) => {
+    setModoLayout(modo);
+    localStorage.setItem('pdv_layout_modo', modo);
+    setSugestoesAbertas(false);
+    setBuscaBaixo('');
+  };
+
+  const registrarUltimoItem = (item) => {
+    if (!item) return;
+    setUltimoItemAdicionado({
+      nome: item.nome,
+      unidade: item.unidade || 'UN',
+      peso: item.peso,
+      precoKg: parseFloat(item.precoKg || 0),
+      total: parseFloat(item.total || 0),
+    });
+  };
+
+  const alterarQuantidade = (uid, delta) => {
+    setItensCarrinho(prev => {
+      const atualizados = prev.map(item => {
+        if (item.uid !== uid) return item;
+        if (item.unidade === 'UN') {
+          const novaQtd = Math.max(1, (parseInt(item.peso) || 1) + delta);
+          const novo = {
+            ...item,
+            peso: String(novaQtd),
+            total: +(novaQtd * item.precoKg).toFixed(2),
+          };
+          registrarUltimoItem(novo);
+          return novo;
+        } else {
+          const novoPeso = Math.max(0.05, +(parseFloat(item.peso) + (delta * 0.1)).toFixed(3));
+          const novo = {
+            ...item,
+            peso: novoPeso.toFixed(3),
+            total: +(novoPeso * item.precoKg).toFixed(2),
+          };
+          registrarUltimoItem(novo);
+          return novo;
+        }
+      });
+      return atualizados;
+    });
+  };
+
+  const adicionarProdutoPorObjeto = (produto, multiplicador = 1) => {
+    if (!produto) return;
+    if (produto.unidade === 'KG') {
+      setProdutoKGPendente(produto);
+      return;
+    }
+    const qtd = Math.max(1, multiplicador);
+    setItensCarrinho(prev => {
+      const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
+      if (idx >= 0) {
+        const novo = [...prev];
+        const novaQtd = parseFloat(novo[idx].peso) + qtd;
+        novo[idx] = {
+          ...novo[idx],
+          peso: String(novaQtd),
+          total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2),
+        };
+        registrarUltimoItem(novo[idx]);
+        return novo;
+      }
+      const novoItem = {
+        id: produto.id,
+        nome: produto.nome,
+        precoKg: produto.precoVenda,
+        peso: String(qtd),
+        total: +(qtd * produto.precoVenda).toFixed(2),
+        unidade: 'UN',
+        uid: Date.now() + Math.random(),
+      };
+      registrarUltimoItem(novoItem);
+      return [...prev, novoItem];
+    });
+    setErroVenda(null);
+  };
 
   // Barcode scanner state
   const navigate = useNavigate();
@@ -491,7 +580,7 @@ export default function PdvBalanca() {
   // ── LEITOR DE CÓDIGO DE BARRAS ──────────────────────────────
   // Leitores USB HID funcionam como teclado: digitam muito rápido e mandam Enter
   // Detectamos isso capturando keydown globalmente com debounce de 80ms
-  const processarCodigo = useCallback(async (codigo) => {
+  const processarCodigo = useCallback(async (codigo, multiplicador = 1) => {
     if (!codigo || codigo.length < 3) return;
 
     // Código reservado 999: Item avulso / Diversos com valor aberto
@@ -508,12 +597,14 @@ export default function PdvBalanca() {
 
       // Caso 1: código de balança KG — já vem com peso e valor calculados
       if (produto.balancaInfo && produto.unidade === 'KG' && produto.balancaInfo.pesoCalculado) {
-        const peso  = produto.balancaInfo.pesoCalculado;
-        const total = produto.balancaInfo.valorTotal;
-        setItensCarrinho(prev => [...prev, {
+        const peso  = +(produto.balancaInfo.pesoCalculado * multiplicador).toFixed(3);
+        const total = +(produto.balancaInfo.valorTotal * multiplicador).toFixed(2);
+        const novoItem = {
           id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-          peso: peso.toFixed(3), total, unidade: 'KG', uid: Date.now()
-        }]);
+          peso: peso.toFixed(3), total, unidade: 'KG', uid: Date.now() + Math.random()
+        };
+        setItensCarrinho(prev => [...prev, novoItem]);
+        registrarUltimoItem(novoItem);
         setErroVenda(null);
         return;
       }
@@ -524,19 +615,23 @@ export default function PdvBalanca() {
         return;
       }
 
-      // Caso 3: produto UN — adiciona 1 (ou +1 se já estiver no carrinho)
-      const qtd = 1;
+      // Caso 3: produto UN — adiciona 1 (ou multiplicador)
+      const qtd = Math.max(1, multiplicador);
       setItensCarrinho(prev => {
         const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
         if (idx >= 0) {
           const novo = [...prev];
-          novo[idx] = { ...novo[idx], peso: String(parseFloat(novo[idx].peso) + qtd), total: novo[idx].total + produto.precoVenda };
+          const novaQtd = parseFloat(novo[idx].peso) + qtd;
+          novo[idx] = { ...novo[idx], peso: String(novaQtd), total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2) };
+          registrarUltimoItem(novo[idx]);
           return novo;
         }
-        return [...prev, {
+        const novoItem = {
           id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-          peso: String(qtd), total: qtd * produto.precoVenda, unidade: 'UN', uid: Date.now()
-        }];
+          peso: String(qtd), total: +(qtd * produto.precoVenda).toFixed(2), unidade: 'UN', uid: Date.now() + Math.random()
+        };
+        registrarUltimoItem(novoItem);
+        return [...prev, novoItem];
       });
       setErroVenda(null);
     } catch (e) {
@@ -635,10 +730,13 @@ export default function PdvBalanca() {
   }, [itensCarrinho, salvando, confirmar, pixModalInfo, modoDividido, divisoes, valorPago, totalGeral]);
 
   const adicionarKGManual = (produto, peso) => {
-    setItensCarrinho(prev => [...prev, {
+    const total = +(peso * produto.precoVenda).toFixed(2);
+    const novoItem = {
       id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-      peso: peso.toFixed(3), total: peso * produto.precoVenda, unidade: 'KG', uid: Date.now()
-    }]);
+      peso: peso.toFixed(3), total, unidade: 'KG', uid: Date.now() + Math.random()
+    };
+    setItensCarrinho(prev => [...prev, novoItem]);
+    registrarUltimoItem(novoItem);
     setProdutoKGPendente(null);
     setErroVenda(null);
   };
@@ -649,19 +747,34 @@ export default function PdvBalanca() {
       const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
       if (idx >= 0) {
         const novo = [...prev];
-        novo[idx] = { ...novo[idx], peso: String(parseFloat(novo[idx].peso) + qtd), total: novo[idx].total + produto.precoVenda * qtd };
+        const novaQtd = parseFloat(novo[idx].peso) + qtd;
+        novo[idx] = { ...novo[idx], peso: String(novaQtd), total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2) };
+        registrarUltimoItem(novo[idx]);
         return novo;
       }
-      return [...prev, {
+      const novoItem = {
         id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-        peso: String(qtd), total: qtd * produto.precoVenda, unidade: 'UN', uid: Date.now()
-      }];
+        peso: String(qtd), total: +(qtd * produto.precoVenda).toFixed(2), unidade: 'UN', uid: Date.now() + Math.random()
+      };
+      registrarUltimoItem(novoItem);
+      return [...prev, novoItem];
     });
     setQtds(q => ({ ...q, [produto.id]: 1 }));
     setErroVenda(null);
   };
 
-  const removerItem = (uid) => setItensCarrinho(prev => prev.filter(i => i.uid !== uid));
+  const removerItem = (uid) => {
+    setItensCarrinho(prev => {
+      const filtrados = prev.filter(i => i.uid !== uid);
+      if (filtrados.length === 0) {
+        setUltimoItemAdicionado(null);
+      } else {
+        const ultimo = filtrados[filtrados.length - 1];
+        registrarUltimoItem(ultimo);
+      }
+      return filtrados;
+    });
+  };
 
   const finalizarVenda = async () => {
     if (itensCarrinho.length === 0 || salvando) return;
@@ -719,6 +832,7 @@ export default function PdvBalanca() {
       setTimeout(() => {
         setItensCarrinho([]); setVendaFinalizada(false); setValorPago(''); setFormaPagamento('DINHEIRO'); setErroVenda(null);
         setModoDividido(false);
+        setUltimoItemAdicionado(null);
         sessionStorage.removeItem('pdv_carrinho');
         sessionStorage.removeItem('pdv_forma');
         sessionStorage.removeItem('pdv_valorpago');
@@ -747,6 +861,106 @@ export default function PdvBalanca() {
     acc[cat].push(p);
     return acc;
   }, {});
+
+  // Sugestões para o Modo Limpo (barra inferior)
+  const produtosSugeridos = (() => {
+    if (!buscaBaixo.trim()) return [];
+    let termo = buscaBaixo.toLowerCase().trim();
+    if (termo.includes('*')) {
+      termo = termo.split('*')[1]?.trim() || termo;
+    }
+    if (!termo) return [];
+    return produtos.filter(p => (
+      p.nome.toLowerCase().includes(termo) ||
+      p.categoria?.toLowerCase().includes(termo) ||
+      (p.codigoBarras && p.codigoBarras.includes(termo))
+    )).slice(0, 8);
+  })();
+
+  const handleBuscaBaixoChange = (e) => {
+    const val = e.target.value;
+    setBuscaBaixo(val);
+    setSugestoesAbertas(val.trim().length > 0);
+    setIndiceSugerido(0);
+  };
+
+  const selecionarSugestao = (prod, multiplicador = 1) => {
+    if (!prod) return;
+    if (prod.unidade === 'KG') {
+      setProdutoKGPendente(prod);
+    } else {
+      adicionarProdutoPorObjeto(prod, multiplicador);
+    }
+    setBuscaBaixo('');
+    setSugestoesAbertas(false);
+  };
+
+  const handleBuscaBaixoKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (produtosSugeridos.length > 0) {
+        setIndiceSugerido(prev => (prev + 1) % produtosSugeridos.length);
+      }
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (produtosSugeridos.length > 0) {
+        setIndiceSugerido(prev => (prev - 1 + produtosSugeridos.length) % produtosSugeridos.length);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      setSugestoesAbertas(false);
+      setBuscaBaixo('');
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = buscaBaixo.trim();
+      if (!val) return;
+
+      if (val === '999') {
+        setItemDiversosAberto(true);
+        setBuscaBaixo('');
+        setSugestoesAbertas(false);
+        return;
+      }
+
+      // Se há multiplicador (ex: "3*coca" ou "3*789...")
+      let mult = 1;
+      let termo = val;
+      if (val.includes('*')) {
+        const partes = val.split('*');
+        const m = parseFloat(partes[0]);
+        if (!isNaN(m) && m > 0) {
+          mult = m;
+          termo = partes.slice(1).join('*').trim();
+        }
+      }
+
+      // Se tem sugestões abertas e há produtos
+      if (sugestoesAbertas && produtosSugeridos.length > 0) {
+        const prod = produtosSugeridos[indiceSugerido] || produtosSugeridos[0];
+        selecionarSugestao(prod, mult);
+        return;
+      }
+
+      // Se não há lista aberta ou é código direto, processa como código de barras
+      processarCodigo(termo, mult);
+      setBuscaBaixo('');
+      setSugestoesAbertas(false);
+    }
+  };
+
+  // Auto-foco na barra inferior quando no modo limpo e sem modais abertos
+  useEffect(() => {
+    if (modoLayout === 'limpo') {
+      if (!confirmar && !produtoKGPendente && !itemDiversosAberto && !codigoNaoEncontrado && !pixModalInfo) {
+        setTimeout(() => inputBaixoRef.current?.focus(), 80);
+      }
+    }
+  }, [modoLayout, confirmar, produtoKGPendente, itemDiversosAberto, codigoNaoEncontrado, pixModalInfo, itensCarrinho.length]);
 
   return (
     <div className="h-screen bg-page text-stone-900 flex flex-col select-none font-mono overflow-hidden">
@@ -1110,177 +1324,532 @@ export default function PdvBalanca() {
         </div>
       )}
 
-      {/* TOPO — STATUS SCANNER */}
-      <header className="bg-white border-b border-stone-200 px-5 py-3 flex items-center justify-between flex-shrink-0 gap-4">
+      {/* TOPO — STATUS SCANNER E SELETOR DE MODO */}
+      <header className="bg-white border-b border-stone-200 px-5 py-2.5 flex items-center justify-between flex-shrink-0 gap-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl">📷</span>
           <div>
-            <p className="text-xs font-bold text-stone-900">Leitor de Código de Barras</p>
-            <p className="text-xs text-stone-500">Aponte o scanner para o produto — ele será adicionado automaticamente</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-stone-900">Frente de Caixa (PDV)</p>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${modoLayout === 'limpo' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                {modoLayout === 'limpo' ? '⚡ Modo Limpo' : '📑 Modo Clássico'}
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-500">Aponte o scanner para o produto — ele será adicionado automaticamente</p>
           </div>
         </div>
 
         {/* Flash feedback do scan */}
         {flashCodigo && (
-          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-2 animate-pulse">
-            <span className="text-emerald-700 text-lg">✓</span>
-            <span className="text-emerald-700 text-sm font-bold font-mono">{flashCodigo}</span>
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-1.5 animate-pulse">
+            <span className="text-emerald-700 text-base">✓</span>
+            <span className="text-emerald-700 text-xs font-bold font-mono">{flashCodigo}</span>
           </div>
         )}
 
-        <div className="text-right min-w-24">
-          <p className="text-xs text-stone-500 font-medium">Total</p>
-          <p className="text-xl font-bold text-stone-900">R$ {totalGeral.toFixed(2)}</p>
+        {/* SELETOR DE MODO DO PDV (ALTERNÂNCIA FÁCIL) */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-inner">
+            <button
+              type="button"
+              onClick={() => alternarModoLayout('limpo')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                modoLayout === 'limpo'
+                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+              title="Modo Limpo: Tela ampla sem catálogo estático, com barra de busca e leitor na parte de baixo"
+            >
+              <span>⚡</span>
+              <span>Modo Limpo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => alternarModoLayout('classico')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                modoLayout === 'classico'
+                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+              title="Modo Clássico: Tela com catálogo completo de produtos na coluna esquerda"
+            >
+              <span>📑</span>
+              <span>Modo Clássico</span>
+            </button>
+          </div>
+
+          <div className="text-right min-w-24 pl-3 border-l border-stone-200">
+            <p className="text-[11px] text-stone-400 font-medium">{itensCarrinho.length} item(ns)</p>
+            <p className="text-xl font-black text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</p>
+          </div>
         </div>
       </header>
 
-      {/* CORPO */}
-      <div className="flex flex-1 overflow-hidden">
+      {modoLayout === 'classico' ? (
+        /* CORPO — MODO CLÁSSICO (100% PRESERVADO) */
+        <div className="flex flex-1 overflow-hidden">
 
-        {/* LISTA MANUAL DE PRODUTOS */}
-        <section className="w-2/5 flex flex-col border-r border-stone-200" style={{minWidth:0}}>
-          <div className="px-4 py-2 border-b border-stone-200 flex-shrink-0 bg-page flex items-center justify-between">
-            <p className="text-xs text-stone-500 font-medium">Ou selecione manualmente:</p>
-            <button
-              onClick={() => setItemDiversosAberto(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-2.5 py-1 rounded-md transition-all active:scale-95 flex items-center gap-1 shadow-sm"
-              title="Adicionar item avulso com valor em aberto (Atalho: F9 ou digite 999)">
-              <span>🏷️</span>
-              <span>+ Diversos (999) [F9]</span>
-            </button>
-          </div>
-          <div className="px-4 py-3 border-b border-stone-200 flex-shrink-0">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">🔍</span>
-              <input ref={buscaRef} value={busca} onChange={e => setBusca(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && busca.trim() === '999') {
-                    setBusca('');
-                    setItemDiversosAberto(true);
-                  }
-                }}
-                placeholder="Buscar produto ou digite '999' para diversos..."
-                className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-9 pr-4 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-brand-500 transition-colors"
-              />
-              {busca && <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700 text-lg">×</button>}
+          {/* LISTA MANUAL DE PRODUTOS */}
+          <section className="w-2/5 flex flex-col border-r border-stone-200" style={{minWidth:0}}>
+            <div className="px-4 py-2 border-b border-stone-200 flex-shrink-0 bg-page flex items-center justify-between">
+              <p className="text-xs text-stone-500 font-medium">Ou selecione manualmente:</p>
+              <button
+                onClick={() => setItemDiversosAberto(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-2.5 py-1 rounded-md transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                title="Adicionar item avulso com valor em aberto (Atalho: F9 ou digite 999)">
+                <span>🏷️</span>
+                <span>+ Diversos (999) [F9]</span>
+              </button>
             </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {produtosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-2">
-                <span className="text-4xl">🔍</span>
-                <p className="text-xs font-medium">Nenhum produto encontrado</p>
+            <div className="px-4 py-3 border-b border-stone-200 flex-shrink-0">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">🔍</span>
+                <input ref={buscaRef} value={busca} onChange={e => setBusca(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && busca.trim() === '999') {
+                      setBusca('');
+                      setItemDiversosAberto(true);
+                    }
+                  }}
+                  placeholder="Buscar produto ou digite '999' para diversos..."
+                  className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-9 pr-4 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-brand-500 transition-colors"
+                />
+                {busca && <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700 text-lg">×</button>}
               </div>
-            ) : Object.entries(porCategoria).map(([cat, prods]) => (
-              <div key={cat}>
-                <div className="px-4 py-2 bg-white border-b border-stone-200/50 sticky top-0">
-                  <p className="text-xs text-stone-500 font-medium font-bold">{cat}</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {produtosFiltrados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-2">
+                  <span className="text-4xl">🔍</span>
+                  <p className="text-xs font-medium">Nenhum produto encontrado</p>
                 </div>
-                {prods.map(p => {
-                  const isUN = p.unidade === 'UN';
-                  const qtd = qtds[p.id] || 1;
-                  return (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3 border-b border-stone-200/40 hover:bg-stone-100/30 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-stone-900 truncate">{p.nome}</p>
-                          {p.codigoBarras && <span className="text-xs text-stone-500 font-mono flex-shrink-0">{p.codigoBarras}</span>}
-                        </div>
-                        <p className="text-xs text-emerald-700 font-bold mt-0.5">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
-                      </div>
-                      {isUN ? (
-                        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                          <div className="flex items-center bg-stone-100 border border-stone-300 rounded-lg overflow-hidden">
-                            <button onClick={() => setQtds(q => ({ ...q, [p.id]: Math.max(1, (q[p.id]||1) - 1) }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">−</button>
-                            <span className="px-2 text-stone-900 font-bold text-sm min-w-[1.5rem] text-center">{qtd}</span>
-                            <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">+</button>
+              ) : Object.entries(porCategoria).map(([cat, prods]) => (
+                <div key={cat}>
+                  <div className="px-4 py-2 bg-white border-b border-stone-200/50 sticky top-0">
+                    <p className="text-xs text-stone-500 font-medium font-bold">{cat}</p>
+                  </div>
+                  {prods.map(p => {
+                    const isUN = p.unidade === 'UN';
+                    const qtd = qtds[p.id] || 1;
+                    return (
+                      <div key={p.id} className="flex items-center justify-between px-4 py-3 border-b border-stone-200/40 hover:bg-stone-100/30 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-stone-900 truncate">{p.nome}</p>
+                            {p.codigoBarras && <span className="text-xs text-stone-500 font-mono flex-shrink-0">{p.codigoBarras}</span>}
                           </div>
-                          <button onClick={() => adicionarUN(p)} className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
-                            + {(p.precoVenda * qtd).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}
-                          </button>
+                          <p className="text-xs text-emerald-700 font-bold mt-0.5">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
                         </div>
-                      ) : (
-                        <button onClick={() => setProdutoKGPendente(p)} className="ml-3 flex-shrink-0 bg-stone-100 border border-stone-300 hover:border-stone-400 text-stone-700 font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
-                          ⚖️ Digitar Peso
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CUPOM */}
-        <section className="w-3/5 flex flex-col bg-white">
-          <div className="px-5 pt-4 pb-3 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-stone-700 font-bold">🛒 Cupom</p>
-              <p className="text-stone-500 text-xs mt-0.5">{itensCarrinho.length} item(s)</p>
+                        {isUN ? (
+                          <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                            <div className="flex items-center bg-stone-100 border border-stone-300 rounded-lg overflow-hidden">
+                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: Math.max(1, (q[p.id]||1) - 1) }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">−</button>
+                              <span className="px-2 text-stone-900 font-bold text-sm min-w-[1.5rem] text-center">{qtd}</span>
+                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">+</button>
+                            </div>
+                            <button onClick={() => adicionarUN(p)} className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
+                              + {(p.precoVenda * qtd).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setProdutoKGPendente(p)} className="ml-3 flex-shrink-0 bg-stone-100 border border-stone-300 hover:border-stone-400 text-stone-700 font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
+                            ⚖️ Digitar Peso
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-            <span className="text-2xl font-bold text-stone-900">R$ {totalGeral.toFixed(2)}</span>
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-            {itensCarrinho.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-3 py-12">
-                <span className="text-5xl">📷</span>
-                <p className="text-xs font-medium text-center leading-relaxed">Aponte o leitor<br/>para o produto</p>
+          </section>
+
+          {/* CUPOM */}
+          <section className="w-3/5 flex flex-col bg-white">
+            <div className="px-5 pt-4 pb-3 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-stone-700 font-bold">🛒 Cupom</p>
+                <p className="text-stone-500 text-xs mt-0.5">{itensCarrinho.length} item(s)</p>
               </div>
-            )}
-            {itensCarrinho.map((item, idx) => (
-              <div key={item.uid} className="bg-white border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between group hover:border-brand-400 transition-colors">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <span className="text-stone-400 text-xs font-bold w-5 text-center flex-shrink-0">{idx+1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
-                    <p className="text-sm text-stone-500 mt-0.5">
-                      {item.unidade === 'UN' ? `${item.peso} un` : `${item.peso} kg`}
-                      <span className="mx-1 text-stone-300">×</span>
-                      R$ {parseFloat(item.precoKg).toFixed(2)}/{item.unidade === 'UN' ? 'un' : 'kg'}
-                    </p>
+              <span className="text-2xl font-bold text-stone-900">R$ {totalGeral.toFixed(2)}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {itensCarrinho.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-3 py-12">
+                  <span className="text-5xl">📷</span>
+                  <p className="text-xs font-medium text-center leading-relaxed">Aponte o leitor<br/>para o produto</p>
+                </div>
+              )}
+              {itensCarrinho.map((item, idx) => (
+                <div key={item.uid} className="bg-white border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between group hover:border-brand-400 transition-colors">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="text-stone-400 text-xs font-bold w-5 text-center flex-shrink-0">{idx+1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
+                      <p className="text-sm text-stone-500 mt-0.5">
+                        {item.unidade === 'UN' ? `${item.peso} un` : `${item.peso} kg`}
+                        <span className="mx-1 text-stone-300">×</span>
+                        R$ {parseFloat(item.precoKg).toFixed(2)}/{item.unidade === 'UN' ? 'un' : 'kg'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                    <span className="text-emerald-700 font-bold text-lg font-mono">R$ {item.total.toFixed(2)}</span>
+                    <button onClick={() => removerItem(item.uid)} className="text-stone-300 hover:text-red-600 transition-colors text-2xl leading-none opacity-0 group-hover:opacity-100 w-6 text-center font-light">×</button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                  <span className="text-emerald-700 font-bold text-lg font-mono">R$ {item.total.toFixed(2)}</span>
-                  <button onClick={() => removerItem(item.uid)} className="text-stone-300 hover:text-red-600 transition-colors text-2xl leading-none opacity-0 group-hover:opacity-100 w-6 text-center font-light">×</button>
+              ))}
+            </div>
+
+            {erroVenda && !confirmar && (
+              <div className="mx-4 mb-2 text-xs rounded px-3 py-2 border text-amber-700 bg-amber-50 border-amber-900">{erroVenda}</div>
+            )}
+
+            <div className="border-t border-stone-200 p-4 space-y-3 flex-shrink-0">
+              <div className="flex justify-between items-center">
+                <span className="text-stone-600 uppercase text-xs tracking-widest font-bold">Total</span>
+                <span className="text-3xl font-bold text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
+              </div>
+              <button onClick={() => setConfirmar(true)} disabled={itensCarrinho.length === 0 || salvando}
+                className={`w-full py-4 rounded-lg font-bold text-sm uppercase tracking-wide transition-all duration-200 active:scale-95
+                  ${vendaFinalizada ? 'bg-emerald-600 text-white'
+                  : itensCarrinho.length === 0 ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-soft'}`}>
+                {salvando ? 'Registrando...' : vendaFinalizada ? '✓ Venda Registrada!' : 'Finalizar Venda (F10)'}
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => { setItensCarrinho([]); setErroVenda(null); }} disabled={itensCarrinho.length === 0}
+                  className="flex-1 py-2 rounded text-xs text-stone-500 hover:text-stone-600 transition-colors disabled:opacity-0">
+                  Limpar carrinho
+                </button>
+                {ultimaVendaId && (
+                  <button onClick={cancelarUltimaVenda} disabled={cancelando}
+                    className="flex-1 py-2 rounded text-xs text-red-600 hover:text-red-700 border border-red-200 transition-colors">
+                    {cancelando ? 'Cancelando...' : '↩ Cancelar ultima'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : (
+        /* CORPO — MODO LIMPO (CAIXA RÁPIDO COM BUSCA INFERIOR) */
+        <div className="flex flex-1 flex-col overflow-hidden bg-stone-100/60">
+          {/* ÁREA SUPERIOR: CUPOM À ESQUERDA + RESUMO/TOTAIS À DIREITA */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* PAINEL PRINCIPAL: ITENS DA VENDA ATUAL (CUPOM AMPLO) */}
+            <section className="flex-1 flex flex-col bg-white border-r border-stone-200 overflow-hidden">
+              {/* Banner do Último Item Registrado */}
+              {ultimoItemAdicionado && (
+                <div className="bg-emerald-50/90 border-b border-emerald-200 px-6 py-2.5 flex items-center justify-between flex-shrink-0 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                      ✓
+                    </span>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                        Último produto registrado
+                      </span>
+                      <p className="text-sm font-extrabold text-stone-900 truncate max-w-lg">
+                        {ultimoItemAdicionado.nome}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-stone-500 font-medium mr-2">
+                      {ultimoItemAdicionado.peso} {ultimoItemAdicionado.unidade.toLowerCase()} × R$ {ultimoItemAdicionado.precoKg.toFixed(2)}
+                    </span>
+                    <span className="text-base font-black font-mono text-emerald-800">
+                      R$ {ultimoItemAdicionado.total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela de Itens do Cupom ou Mensagem de Aguardando */}
+              <div className="flex-1 overflow-y-auto">
+                {itensCarrinho.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center select-none">
+                    <div className="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center mb-4 text-3xl shadow-inner">
+                      🛒
+                    </div>
+                    <h3 className="text-base font-bold text-stone-800 mb-1">Caixa Aberto · Aguardando Leitura</h3>
+                    <p className="text-xs text-stone-500 max-w-sm mb-6 leading-relaxed">
+                      Aponte o leitor de código de barras ou utilize a <strong>barra de pesquisa na parte inferior</strong> da tela para registrar produtos.
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
+                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">F9</span>
+                        <span>Item Avulso (999)</span>
+                      </div>
+                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
+                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">F10</span>
+                        <span>Finalizar Venda</span>
+                      </div>
+                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
+                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">Qtd*Produto</span>
+                        <span>Ex: 2*coca</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-2">
+                    {/* Cabeçalho da Tabela */}
+                    <div className="grid grid-cols-12 text-xs font-bold text-stone-400 uppercase tracking-wider pb-2 px-3 border-b border-stone-100">
+                      <div className="col-span-1 text-center">#</div>
+                      <div className="col-span-5">Produto / Descrição</div>
+                      <div className="col-span-2 text-right">Preço Unit.</div>
+                      <div className="col-span-2 text-center">Qtd / Peso</div>
+                      <div className="col-span-2 text-right">Subtotal</div>
+                    </div>
+
+                    {/* Linhas dos Itens */}
+                    {itensCarrinho.map((item, idx) => (
+                      <div
+                        key={item.uid}
+                        className="grid grid-cols-12 items-center bg-white border border-stone-200 hover:border-brand-400 rounded-xl p-3 shadow-2xs transition-all group"
+                      >
+                        {/* # */}
+                        <div className="col-span-1 text-center font-bold text-xs text-stone-400">
+                          {idx + 1}
+                        </div>
+
+                        {/* Nome */}
+                        <div className="col-span-5 pr-2">
+                          <p className="font-bold text-stone-900 text-sm truncate">{item.nome}</p>
+                          <span className="text-[11px] text-stone-500 font-mono">
+                            {item.unidade === 'UN' ? 'Unidade' : 'Quilo (KG)'}
+                          </span>
+                        </div>
+
+                        {/* Preço Unitário */}
+                        <div className="col-span-2 text-right text-xs font-semibold text-stone-600 font-mono">
+                          R$ {parseFloat(item.precoKg).toFixed(2)}
+                        </div>
+
+                        {/* Qtd / Peso com botões de ajuste rápido */}
+                        <div className="col-span-2 flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => alterarQuantidade(item.uid, -1)}
+                            className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            title="Diminuir quantidade"
+                          >
+                            −
+                          </button>
+                          <span className="font-bold text-xs font-mono text-stone-800 min-w-[3.2rem] text-center">
+                            {item.peso} {item.unidade.toLowerCase()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => alterarQuantidade(item.uid, +1)}
+                            className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            title="Aumentar quantidade"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Subtotal e Excluir */}
+                        <div className="col-span-2 flex items-center justify-end gap-2">
+                          <span className="font-black text-sm font-mono text-emerald-700">
+                            R$ {item.total.toFixed(2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removerItem(item.uid)}
+                            className="w-6 h-6 rounded-lg text-stone-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-sm transition-all opacity-40 group-hover:opacity-100"
+                            title="Remover item da venda"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* PAINEL LATERAL DIREITO: TOTAIS E BOTÕES DE FINALIZAÇÃO */}
+            <aside className="w-80 md:w-96 flex flex-col bg-stone-50 p-5 flex-shrink-0 border-l border-stone-200 justify-between">
+              <div className="space-y-4">
+                {/* Total da Venda em Destaque */}
+                <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-stone-400 block mb-1">
+                    Total a Pagar
+                  </span>
+                  <div className="text-4xl font-black font-mono text-stone-900 tracking-tight flex items-baseline gap-1">
+                    <span className="text-2xl text-stone-400 font-semibold">R$</span>
+                    <span>{totalGeral.toFixed(2)}</span>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
+                    <span>Total de itens:</span>
+                    <strong className="font-mono text-stone-800 text-sm font-bold">
+                      {itensCarrinho.length} item(ns)
+                    </strong>
+                  </div>
+                </div>
+
+                {erroVenda && !confirmar && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3">
+                    {erroVenda}
+                  </div>
+                )}
+              </div>
+
+              {/* Ações Rápidas */}
+              <div className="space-y-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setConfirmar(true)}
+                  disabled={itensCarrinho.length === 0 || salvando}
+                  className={`w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 ${
+                    itensCarrinho.length === 0
+                      ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-lg'
+                  }`}
+                >
+                  <span>{salvando ? 'Processando...' : vendaFinalizada ? '✓ Venda Concluída!' : 'FINALIZAR VENDA (F10)'}</span>
+                  <span>→</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setItemDiversosAberto(true)}
+                    className="py-2.5 px-3 bg-white hover:bg-amber-50 text-amber-700 border border-stone-200 hover:border-amber-300 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5"
+                  >
+                    <span>🏷️</span>
+                    <span>+ Diversos (F9)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setItensCarrinho([]); setErroVenda(null); }}
+                    disabled={itensCarrinho.length === 0}
+                    className="py-2.5 px-3 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 border border-stone-200 hover:border-red-200 rounded-xl text-xs font-bold transition-all shadow-2xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                  >
+                    <span>🧹</span>
+                    <span>Limpar Venda</span>
+                  </button>
+                </div>
+
+                {ultimaVendaId && (
+                  <button
+                    type="button"
+                    onClick={cancelarUltimaVenda}
+                    disabled={cancelando}
+                    className="w-full py-2 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all"
+                  >
+                    {cancelando ? 'Cancelando...' : '↩ Cancelar Última Venda'}
+                  </button>
+                )}
+              </div>
+            </aside>
+          </div>
+
+          {/* BARRA DE PESQUISA E CÓDIGO DE BARRAS INFERIOR (FIXADA NO RODAPÉ) */}
+          <div className="relative bg-white border-t border-stone-200 p-3 shadow-lg z-20">
+            {/* POPUP DE SUGESTÕES FLUTUANTE ACIMA DA BARRA */}
+            {sugestoesAbertas && buscaBaixo.trim().length > 0 && (
+              <div
+                ref={sugestoesRef}
+                className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl border border-stone-300 shadow-2xl overflow-hidden max-h-80 flex flex-col z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+              >
+                <div className="bg-stone-100 px-4 py-2 border-b border-stone-200 flex items-center justify-between text-xs font-bold text-stone-600">
+                  <span>Produtos Encontrados ({produtosSugeridos.length})</span>
+                  <span className="text-[11px] font-normal text-stone-400">Navegue com ↑ / ↓ e confirme com Enter</span>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-1">
+                  {produtosSugeridos.length === 0 ? (
+                    <div className="p-4 text-center text-stone-400 text-xs">
+                      Nenhum produto cadastrado com esse nome ou código.
+                      <p className="text-[11px] text-stone-400 mt-1">Pressione Enter para buscar pelo código de barras ou F9 para item diverso.</p>
+                    </div>
+                  ) : (
+                    produtosSugeridos.map((prod, index) => {
+                      const selecionado = index === indiceSugerido;
+                      return (
+                        <div
+                          key={prod.id}
+                          onClick={() => selecionarSugestao(prod)}
+                          onMouseEnter={() => setIndiceSugerido(index)}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
+                            selecionado ? 'bg-amber-500/15 border border-amber-500/40 text-stone-900' : 'hover:bg-stone-50 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0 pr-3">
+                            <p className="text-sm font-bold text-stone-900 truncate">{prod.nome}</p>
+                            <p className="text-xs text-stone-500">
+                              {prod.categoria || 'Geral'} {prod.codigoBarras ? `· Cód: ${prod.codigoBarras}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-emerald-700 font-mono">
+                              R$ {prod.precoVenda.toFixed(2)}
+                              <span className="text-xs text-stone-500 font-normal">/{prod.unidade === 'UN' ? 'un' : 'kg'}</span>
+                            </p>
+                            <span className="text-[10px] text-stone-400 font-mono">
+                              {prod.unidade === 'UN' ? 'Enter para adicionar' : 'Enter para digitar peso'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="bg-stone-50 px-3 py-1.5 border-t border-stone-200 text-[11px] text-stone-500 flex justify-between">
+                  <span>Pressione <strong>ESC</strong> para fechar a busca</span>
+                  <span><strong>999</strong> = Item avulso</span>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {erroVenda && !confirmar && (
-            <div className="mx-4 mb-2 text-xs rounded px-3 py-2 border text-amber-700 bg-amber-50 border-amber-900">{erroVenda}</div>
-          )}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none text-stone-400">
+                  <span className="text-lg">📷</span>
+                  <span className="text-xs border-r border-stone-300 pr-2">Leitor / Busca</span>
+                </div>
+                <input
+                  ref={inputBaixoRef}
+                  type="text"
+                  value={buscaBaixo}
+                  onChange={handleBuscaBaixoChange}
+                  onKeyDown={handleBuscaBaixoKeyDown}
+                  placeholder="Aponte o leitor de código de barras ou digite o nome do produto... (Pressione Enter)"
+                  className="w-full bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-300 focus:border-brand-500 rounded-xl pl-32 pr-10 py-3 text-stone-900 text-sm font-semibold focus:outline-none shadow-inner transition-all font-sans"
+                />
+                {buscaBaixo && (
+                  <button
+                    type="button"
+                    onClick={() => { setBuscaBaixo(''); setSugestoesAbertas(false); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-lg w-6 h-6 flex items-center justify-center rounded-full hover:bg-stone-200 transition-colors"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
 
-          <div className="border-t border-stone-200 p-4 space-y-3 flex-shrink-0">
-            <div className="flex justify-between items-center">
-              <span className="text-stone-600 uppercase text-xs tracking-widest font-bold">Total</span>
-              <span className="text-3xl font-bold text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
-            </div>
-            <button onClick={() => setConfirmar(true)} disabled={itensCarrinho.length === 0 || salvando}
-              className={`w-full py-4 rounded-lg font-bold text-sm uppercase tracking-wide transition-all duration-200 active:scale-95
-                ${vendaFinalizada ? 'bg-emerald-600 text-white'
-                : itensCarrinho.length === 0 ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-soft'}`}>
-              {salvando ? 'Registrando...' : vendaFinalizada ? '✓ Venda Registrada!' : 'Finalizar Venda (F10)'}
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => { setItensCarrinho([]); setErroVenda(null); }} disabled={itensCarrinho.length === 0}
-                className="flex-1 py-2 rounded text-xs text-stone-500 hover:text-stone-600 transition-colors disabled:opacity-0">
-                Limpar carrinho
+              <button
+                type="button"
+                onClick={() => setItemDiversosAberto(true)}
+                className="py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs uppercase tracking-wide flex items-center gap-2 shadow-sm transition-all active:scale-95 flex-shrink-0"
+                title="Adicionar item avulso com valor em aberto (F9)"
+              >
+                <span>🏷️</span>
+                <span>Diversos (F9)</span>
               </button>
-              {ultimaVendaId && (
-                <button onClick={cancelarUltimaVenda} disabled={cancelando}
-                  className="flex-1 py-2 rounded text-xs text-red-600 hover:text-red-700 border border-red-200 transition-colors">
-                  {cancelando ? 'Cancelando...' : '↩ Cancelar ultima'}
-                </button>
-              )}
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
