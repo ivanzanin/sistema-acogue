@@ -11,12 +11,18 @@ echo.
 set ROOT=%~dp0
 cd /d "%ROOT%"
 
-:: Se tiver git configurado, puxa atualizacoes
+:: Se tiver git configurado, sincroniza com a versao mais recente sem conflitos
 where git >nul 2>&1
 if %errorlevel% equ 0 (
     if exist ".git" (
-        echo [1/3] Baixando novidades do repositorio...
-        git pull origin main
+        echo [1/3] Sincronizando com o repositorio oficial...
+        git fetch origin main >nul 2>&1
+        git checkout main >nul 2>&1
+        git reset --hard origin/main
+        if errorlevel 1 (
+            git pull origin main
+        )
+        echo       Arquivos atualizados com sucesso!
         echo.
     )
 )
