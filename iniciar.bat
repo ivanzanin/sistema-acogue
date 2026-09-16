@@ -10,6 +10,15 @@ echo.
 
 set ROOT=%~dp0
 
+:: Tenta auto-elevacao se nao for Administrador (para conseguir encerrar servicos do Windows)
+net session >nul 2>&1
+if errorlevel 1 (
+    if "%1" neq "--no-elevate" (
+        powershell -ExecutionPolicy Bypass -Command "Start-Process cmd.exe -ArgumentList '/k cd /d \"%~dp0\" && \"%~f0\" --no-elevate' -Verb RunAs" >nul 2>&1
+        if not errorlevel 1 exit /b 0
+    )
+)
+
 :: Desabilita checagem de atualizacao do Prisma (evita travamento)
 set CHECKPOINT_DISABLE=1
 set PRISMA_TELEMETRY_INFORMATION=false
@@ -25,11 +34,17 @@ pause
 exit /b 1
 :node_found
 
-:: Mata processos Node anteriores para liberar locks no banco e .prisma
+:: Mata processos Node e servicos anteriores para liberar locks no banco e .prisma
 echo [0/5] Encerrando processos anteriores...
+echo manutencao > "%ROOT%backend\.manutencao"
 schtasks /end /tn "CasaDeCarne_Rezende" > nul 2>&1
+taskkill /F /IM wscript.exe > nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq CasaDeCarne_Servidor_Monitor*" > nul 2>&1
 taskkill /F /IM node.exe > nul 2>&1
-timeout /t 4 /nobreak > nul
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr :3000 ^| findstr LISTENING') do (
+    taskkill /PID %%a /F > nul 2>&1
+)
+timeout /t 3 /nobreak > nul
 
 :: Limpa arquivos temporarios do Prisma para nao acumular espaco em disco
 del /f /q "%ROOT%backend\node_modules\.prisma\client\*.tmp*" > nul 2>&1
@@ -57,7 +72,10 @@ cd /d "%ROOT%backend"
 
 :: Aplica mudancas do schema no banco (adiciona tabelas/colunas sem apagar dados)
 echo       Atualizando schema...
-call node_modules\.bin\prisma db push --accept-data-loss --skip-generate < nul > nul 2>&1
+call "%NODE_EXE%" node_modules\prisma\build\index.js db push --accept-data-loss --skip-generate < nul > nul 2>&1
+if errorlevel 1 (
+    call node_modules\.bin\prisma db push --accept-data-loss --skip-generate < nul > nul 2>&1
+)
 if errorlevel 1 (
     call npx prisma db push --accept-data-loss --skip-generate < nul > nul 2>&1
 )
@@ -72,18 +90,35 @@ echo       Gerando client Prisma...
 set TENTATIVAS=0
 :retry_generate
 set /a TENTATIVAS+=1
-call node_modules\.bin\prisma generate < nul > nul 2>&1
+taskkill /F /IM node.exe > nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr :3000 ^| findstr LISTENING') do (
+    taskkill /PID %%a /F > nul 2>&1
+)
+del /f /q "%ROOT%backend\node_modules\.prisma\client\*.tmp*" > nul 2>&1
+del /f /q "%ROOT%backend\node_modules\@prisma\engines\*.tmp*" > nul 2>&1
+
+if %TENTATIVAS% geq 5 (
+    rmdir /s /q "%ROOT%backend\node_modules\.prisma\client" > nul 2>&1
+)
+
+call "%NODE_EXE%" node_modules\prisma\build\index.js generate < nul > "%ROOT%backend\prisma_gen.log" 2>&1
+if errorlevel 1 (
+    call node_modules\.bin\prisma generate < nul >> "%ROOT%backend\prisma_gen.log" 2>&1
+)
 if errorlevel 1 (
     if %TENTATIVAS% lss 8 (
         echo       Aguardando liberacao do arquivo... ^(%TENTATIVAS%/8^)
-        timeout /t 5 /nobreak > nul
+        timeout /t 3 /nobreak > nul
         goto :retry_generate
     )
-    echo [ERRO] prisma generate falhou apos 8 tentativas!
+    echo [ERRO] prisma generate falhou apos 8 tentativas! Detalhes do erro:
+    echo ----------------------------------------------------------------
+    if exist "%ROOT%backend\prisma_gen.log" type "%ROOT%backend\prisma_gen.log"
+    echo ----------------------------------------------------------------
     pause
     exit /b 1
 )
-:: Remove temporarios gerados pelo retry do Prisma
+if exist "%ROOT%backend\prisma_gen.log" del /f /q "%ROOT%backend\prisma_gen.log" > nul 2>&1
 del /f /q "%ROOT%backend\node_modules\.prisma\client\*.tmp*" > nul 2>&1
 del /f /q "%ROOT%backend\node_modules\@prisma\engines\*.tmp*" > nul 2>&1
 echo       OK
@@ -119,6 +154,7 @@ if errorlevel 1 (
 
 :: [5] Backend
 echo [5/5] Subindo Backend na porta 3000...
+if exist "%ROOT%backend\.manutencao" del /f /q "%ROOT%backend\.manutencao" > nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr :3000 ^| findstr LISTENING') do (
     taskkill /PID %%a /F > nul 2>&1
 )

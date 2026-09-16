@@ -1,4 +1,5 @@
 @echo off
+title CasaDeCarne_Servidor_Monitor
 :: Servidor leve - apenas sobe o backend sem build
 :: Usado pelo servico automatico de inicializacao ou launcher silencioso
 
@@ -51,11 +52,14 @@ if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
 
 :: Loop de monitoramento - reinicia automaticamente se o backend cair
 :loop
-timeout /t 10 /nobreak > nul
+timeout /t 5 /nobreak > nul
+if exist "%ROOT%\backend\.manutencao" goto :loop
 netstat -ano 2>nul | findstr :3000 | findstr LISTENING > nul
 if errorlevel 1 (
-    cd /d "%ROOT%\backend"
-    powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
-    timeout /t 5 /nobreak > nul
+    if not exist "%ROOT%\backend\.manutencao" (
+        cd /d "%ROOT%\backend"
+        powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process '%NODE_EXE%' -ArgumentList 'server.js' -WorkingDirectory '%ROOT%\backend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\backend\backend.log' -RedirectStandardError '%ROOT%\backend\backend_err.log'"
+        timeout /t 5 /nobreak > nul
+    )
 )
 goto :loop

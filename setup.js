@@ -319,7 +319,7 @@ model DesossaCorteTemplate {
 }
 `;
 fs.writeFileSync(path.join(root, 'backend', 'prisma', 'schema.prisma'), schema);
-console.log('[setup] schema.prisma atualizado (v15 - Comandas mistas).');;
+console.log('[setup] schema.prisma atualizado (v16 - Pagamentos e Correcoes).');
 
 // ── contasPagarController.js ──────────────────────────────────
 const controller = `const { PrismaClient } = require('@prisma/client');

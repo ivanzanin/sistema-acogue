@@ -285,7 +285,7 @@ model VendaDiretaAssado {
 
 `;
 fs.writeFileSync(path.join(root, 'backend', 'prisma', 'schema.prisma'), schema);
-console.log('[setup] schema.prisma atualizado (v10 - ContaPagar).');
+console.log('[setup] schema.prisma atualizado (v16 - Pagamentos e Correcoes).');
 
 // ── contasPagarController.js ──────────────────────────────────
 const controller = `const { PrismaClient } = require('@prisma/client');
