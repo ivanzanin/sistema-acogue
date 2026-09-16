@@ -161,18 +161,31 @@ exports.registrarVenda = async (req, res) => {
     }
 
     if (ops.length > 0) await prisma.$transaction(ops);
-    const novaVenda = await prisma.caixa.create({
-      data: {
-        data: inicioDia(),
-        valorTotal: totalVenda,
-        itensJson: JSON.stringify(itens),
-        formaPagamento: finalForma,
-        valorPago: vp,
-        troco,
-        tenantId,
-        pagamentosJson: finalPagamentosJson,
+    const vendaData = {
+      data: inicioDia(),
+      valorTotal: totalVenda,
+      itensJson: JSON.stringify(itens),
+      formaPagamento: finalForma,
+      valorPago: vp,
+      troco,
+      tenantId,
+    };
+    if (finalPagamentosJson) {
+      vendaData.pagamentosJson = finalPagamentosJson;
+    }
+
+    let novaVenda;
+    try {
+      novaVenda = await prisma.caixa.create({ data: vendaData });
+    } catch (createErr) {
+      if (vendaData.pagamentosJson && createErr.message && createErr.message.includes('pagamentosJson')) {
+        console.warn('[estoque:venda] Prisma sem campo pagamentosJson no client/banco, salvando venda sem ele:', createErr.message);
+        delete vendaData.pagamentosJson;
+        novaVenda = await prisma.caixa.create({ data: vendaData });
+      } else {
+        throw createErr;
       }
-    });
+    }
     res.json({ mensagem: 'Venda registrada.', vendaId: novaVenda.id, total: totalVenda, troco });
   } catch (e) {
     console.error('[estoque:venda]', e.message);
