@@ -13,15 +13,17 @@ exports.listar = async (req, res) => {
 
 exports.criar = async (req, res) => {
   const tenantId = getTenantId(req);
-  const { nome, precoVenda, custo, categoria, unidade, estoqueAtual, validade, codigoBarras } = req.body;
+  const { nome, precoVenda, precoPromocao, custo, categoria, unidade, estoqueAtual, validade, codigoBarras } = req.body;
   if (!nome || !precoVenda) return res.status(400).json({ erro: 'Nome e precoVenda sao obrigatorios.' });
   try {
     const qtdInicial = parseFloat(estoqueAtual || 0);
+    const promoNum = precoPromocao !== undefined && precoPromocao !== null && precoPromocao !== '' ? parseFloat(precoPromocao) : null;
 
     const produto = await prisma.produto.create({
       data: {
         nome: nome.trim(),
         precoVenda: parseFloat(precoVenda),
+        precoPromocao: promoNum && promoNum > 0 ? promoNum : null,
         custo: parseFloat(custo || 0),
         estoqueAtual: qtdInicial,
         unidade: unidade || 'KG',
@@ -51,7 +53,7 @@ exports.criar = async (req, res) => {
 exports.atualizar = async (req, res) => {
   const tenantId = getTenantId(req);
   const { id } = req.params;
-  const { nome, precoVenda, custo, estoqueAtual, categoria, unidade, validade, codigoBarras } = req.body;
+  const { nome, precoVenda, precoPromocao, custo, estoqueAtual, categoria, unidade, validade, codigoBarras } = req.body;
   try {
     const produtoAtual = await prisma.produto.findFirst({ where: { id: parseInt(id), tenantId } });
     if (!produtoAtual) return res.status(404).json({ erro: 'Produto nao encontrado.' });
@@ -59,18 +61,20 @@ exports.atualizar = async (req, res) => {
     const novoNome   = nome        !== undefined ? nome.trim()             : produtoAtual.nome;
     const novaUnid   = unidade     !== undefined ? unidade                 : produtoAtual.unidade;
     const novoEstoque = estoqueAtual !== undefined ? parseFloat(estoqueAtual) : produtoAtual.estoqueAtual;
+    const promoNum   = precoPromocao !== undefined ? (precoPromocao !== null && precoPromocao !== '' && parseFloat(precoPromocao) > 0 ? parseFloat(precoPromocao) : null) : undefined;
 
     await prisma.produto.updateMany({
       where: { id: parseInt(id), tenantId },
       data: {
-        ...(nome         !== undefined && { nome: novoNome }),
-        ...(precoVenda   !== undefined && { precoVenda: parseFloat(precoVenda) }),
-        ...(custo        !== undefined && { custo: parseFloat(custo) }),
-        ...(estoqueAtual !== undefined && { estoqueAtual: novoEstoque }),
-        ...(categoria    !== undefined && { categoria }),
-        ...(unidade      !== undefined && { unidade: novaUnid }),
-        ...(validade     !== undefined && { validade: validade ? new Date(validade) : null }),
-        ...(codigoBarras !== undefined && { codigoBarras: codigoBarras || null }),
+        ...(nome          !== undefined && { nome: novoNome }),
+        ...(precoVenda    !== undefined && { precoVenda: parseFloat(precoVenda) }),
+        ...(promoNum      !== undefined && { precoPromocao: promoNum }),
+        ...(custo         !== undefined && { custo: parseFloat(custo) }),
+        ...(estoqueAtual  !== undefined && { estoqueAtual: novoEstoque }),
+        ...(categoria     !== undefined && { categoria }),
+        ...(unidade       !== undefined && { unidade: novaUnid }),
+        ...(validade      !== undefined && { validade: validade ? new Date(validade) : null }),
+        ...(codigoBarras  !== undefined && { codigoBarras: codigoBarras || null }),
       },
     });
 

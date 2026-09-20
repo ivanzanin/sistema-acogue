@@ -72,6 +72,7 @@ model Produto {
   id           Int               @id @default(autoincrement())
   nome         String
   precoVenda   Float
+  precoPromocao Float?
   custo        Float             @default(0)
   estoqueAtual Float             @default(0)
   unidade      String            @default("KG")

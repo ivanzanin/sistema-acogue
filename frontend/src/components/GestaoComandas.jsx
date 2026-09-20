@@ -74,21 +74,45 @@ function ModalNovaComanda({ onCriar, onFechar }) {
 }
 
 // ─── MODAL FECHAR COMANDA ─────────────────────────────────────────────────────
-function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
+function ModalFecharComanda({ comanda, produtos = [], onFechado, onCancelar }) {
   const [forma, setForma]     = useState('DINHEIRO');
   const [valorPago, setValorPago] = useState('');
   const [busy, setBusy]       = useState(false);
   const [erro, setErro]       = useState(null);
 
-  const troco = forma === 'DINHEIRO' && parseFloat(valorPago) > comanda.total
-    ? parseFloat(valorPago) - comanda.total : 0;
+  const isVoucher = forma === 'VOUCHER';
+
+  // Se pagar com Voucher, itens que tinham promoção voltam ao preço de venda normal
+  let totalComandaVoucher = 0;
+  let temItensPromocao = false;
+
+  (comanda.itens || []).forEach(i => {
+    const prod = i.produto || produtos.find(p => p.id === i.produtoId);
+    const isDiversos = prod?.codigoBarras === '999' || prod?.nome === 'Diversos' || i.nome?.toLowerCase().includes('diversos');
+    let precoUnit = i.precoKg;
+    if (prod && prod.precoVenda > 0 && !isDiversos) {
+      if (prod.precoPromocao && prod.precoPromocao > 0 && i.precoKg < prod.precoVenda) {
+        temItensPromocao = true;
+      }
+      if (isVoucher) {
+        precoUnit = prod.precoVenda;
+      }
+    }
+    totalComandaVoucher += +(i.pesoKg * precoUnit).toFixed(2);
+  });
+  totalComandaVoucher = +totalComandaVoucher.toFixed(2);
+
+  const totalCobrado = isVoucher ? totalComandaVoucher : comanda.total;
+
+  const troco = forma === 'DINHEIRO' && parseFloat(valorPago) > totalCobrado
+    ? parseFloat(valorPago) - totalCobrado : 0;
 
   const fechar = async () => {
-    if (forma === 'DINHEIRO' && parseFloat(valorPago) < comanda.total && valorPago !== '')
+    if (forma === 'DINHEIRO' && parseFloat(valorPago) < totalCobrado && valorPago !== '')
       return setErro('Valor pago insuficiente.');
     setBusy(true); setErro(null);
     try {
-      await api.post(`/comandas/${comanda.id}/fechar`, { formaPagamento: forma, valorPago: parseFloat(valorPago) || comanda.total });
+      await api.post(`/comandas/${comanda.id}/fechar`, { formaPagamento: forma, valorPago: parseFloat(valorPago) || totalCobrado });
       onFechado();
     } catch (e) { setErro(e.response?.data?.erro || 'Erro ao fechar.'); }
     finally { setBusy(false); }
@@ -99,10 +123,23 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
       <div className="bg-white border border-stone-300 rounded-2xl p-7 w-full max-w-md shadow-2xl">
         <p className="text-xs text-brand-700 font-semibold font-bold mb-1">Fechar Comanda</p>
         <p className="text-stone-600 text-sm mb-5">{comanda.nomeCliente} — Aberta em {formatarData(comanda.criadaEm)}</p>
-        <div className="bg-stone-100 rounded-xl px-5 py-4 flex justify-between items-center mb-5">
-          <span className="text-stone-600 text-sm">Total</span>
-          <span className="text-3xl font-bold text-stone-900">{fmt(comanda.total)}</span>
+        <div className="bg-stone-100 rounded-xl px-5 py-4 flex justify-between items-center mb-4">
+          <span className="text-stone-600 text-sm">Total {isVoucher && temItensPromocao ? '(Preço Normal)' : ''}</span>
+          <span className="text-3xl font-bold text-stone-900">{fmt(totalCobrado)}</span>
         </div>
+
+        {isVoucher && temItensPromocao && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+            <span className="text-lg leading-none">🎫</span>
+            <div>
+              <p className="font-bold text-amber-900">Preço Normal Aplicado no Voucher</p>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                Os itens com promoção foram recalculados pelo preço normal de cadastro para fechamento com voucher.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-5 gap-2 mb-5">
           {FORMAS.map(f => (
             <button key={f.id} onClick={() => { setForma(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
@@ -117,7 +154,7 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
               <label className="block text-xs text-stone-500 font-medium mb-1.5">Valor Recebido</label>
               <input type="number" value={valorPago} onChange={e => setValorPago(e.target.value)}
                 className="w-full bg-stone-100 border border-stone-300 rounded-lg px-4 py-3 text-stone-900 text-xl font-bold font-mono focus:outline-none focus:border-brand-500 text-right"
-                placeholder={comanda.total.toFixed(2)} autoFocus onKeyDown={e => e.key === 'Enter' && fechar()} />
+                placeholder={totalCobrado.toFixed(2)} autoFocus onKeyDown={e => e.key === 'Enter' && fechar()} />
             </div>
             {troco > 0 && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 flex justify-between items-center">
@@ -125,9 +162,9 @@ function ModalFecharComanda({ comanda, onFechado, onCancelar }) {
                 <span className="text-emerald-700 text-2xl font-bold">{fmt(troco)}</span>
               </div>
             )}
-            {parseFloat(valorPago) > 0 && parseFloat(valorPago) < comanda.total && (
+            {parseFloat(valorPago) > 0 && parseFloat(valorPago) < totalCobrado && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2 text-center">
-                <p className="text-red-700 text-xs font-bold">Falta {fmt(comanda.total - parseFloat(valorPago))}</p>
+                <p className="text-red-700 text-xs font-bold">Falta {fmt(totalCobrado - parseFloat(valorPago))}</p>
               </div>
             )}
           </div>
@@ -156,14 +193,24 @@ function ModalPesoKG({ produto, pesoInicial, onConfirmar, onCancelar }) {
     onConfirmar(p);
   };
 
-  const valorCalc = parseFloat(String(peso).replace(',', '.')) * produto.precoVenda;
+  const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+  const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
+  const valorCalc = parseFloat(String(peso).replace(',', '.')) * precoAtivo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm">
       <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-sm shadow-xl">
         <p className="text-xs text-stone-500 font-medium mb-1">Informe o peso</p>
         <p className="text-lg font-bold text-stone-900 mb-1">{produto.nome}</p>
-        <p className="text-sm text-emerald-700 mb-5">{fmt(produto.precoVenda)}/kg</p>
+        {temPromo ? (
+          <div className="flex items-center gap-2 mb-5">
+            <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">🔥 Promo</span>
+            <span className="text-sm font-bold text-amber-700 font-mono">{fmt(produto.precoPromocao)}/kg</span>
+            <span className="text-xs text-stone-400 line-through font-mono">{fmt(produto.precoVenda)}/kg</span>
+          </div>
+        ) : (
+          <p className="text-sm text-emerald-700 font-bold mb-5 font-mono">{fmt(produto.precoVenda)}/kg</p>
+        )}
         <label className="block text-xs text-stone-500 font-medium mb-1.5">Peso (kg)</label>
         <input
           ref={inputRef}
@@ -174,7 +221,7 @@ function ModalPesoKG({ produto, pesoInicial, onConfirmar, onCancelar }) {
           onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
         />
         {valorCalc > 0 && (
-          <p className="text-right text-emerald-700 text-sm font-bold mb-4">= {fmt(valorCalc)}</p>
+          <p className="text-right text-emerald-700 text-sm font-bold mb-4 font-mono">= {fmt(valorCalc)}</p>
         )}
         <div className="flex gap-3 mt-3">
           <button onClick={confirmar} disabled={!peso || parseFloat(String(peso).replace(',','.')) <= 0}
@@ -432,7 +479,7 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
   return (
     <div className="flex flex-col h-screen bg-page font-mono overflow-hidden">
       {modalFechar && (
-        <ModalFecharComanda comanda={comanda} onFechado={() => { setModalFechar(false); onFechada(); }} onCancelar={() => setModalFechar(false)} />
+        <ModalFecharComanda comanda={comanda} produtos={produtos} onFechado={() => { setModalFechar(false); onFechada(); }} onCancelar={() => setModalFechar(false)} />
       )}
 
       {itemDiversosAberto && (
@@ -526,14 +573,30 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                   const isUN = p.unidade === 'UN';
                   const qtd = qtds[p.id] || 1;
                   const ocupado = adicionando === p.id;
+                  const temPromo = p.precoPromocao && p.precoPromocao > 0;
+                  const precoAtivo = temPromo ? p.precoPromocao : p.precoVenda;
                   return (
                     <div key={p.id} className="flex items-center justify-between px-4 py-3 border-b border-stone-200/40 hover:bg-stone-100/30 transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold text-stone-900 truncate">{p.nome}</p>
                           {p.codigoBarras && <span className="text-xs text-stone-500 font-mono flex-shrink-0">{p.codigoBarras}</span>}
+                          {temPromo && (
+                            <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30">🔥 Promo</span>
+                          )}
                         </div>
-                        <p className="text-xs text-emerald-700 font-bold mt-0.5">{fmt(p.precoVenda)}/{isUN ? 'un' : 'kg'}</p>
+                        {temPromo ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-xs text-amber-700 font-bold font-mono">
+                              {fmt(p.precoPromocao)}/{isUN ? 'un' : 'kg'}
+                            </p>
+                            <p className="text-[11px] text-stone-400 line-through font-mono">
+                              {fmt(p.precoVenda)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-emerald-700 font-bold mt-0.5">{fmt(p.precoVenda)}/{isUN ? 'un' : 'kg'}</p>
+                        )}
                       </div>
                       {isUN ? (
                         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
@@ -543,7 +606,7 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                             <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">+</button>
                           </div>
                           <button onClick={() => adicionarItem(p, qtd)} disabled={ocupado} className="bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
-                            {ocupado ? '...' : `+ ${fmt(p.precoVenda * qtd)}`}
+                            {ocupado ? '...' : `+ ${fmt(precoAtivo * qtd)}`}
                           </button>
                         </div>
                       ) : (
@@ -576,8 +639,9 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                 <p className="text-xs font-medium text-center leading-relaxed">Aponte o leitor<br/>para o produto</p>
               </div>
             ) : comanda.itens.map((item, idx) => {
-              const prod = produtos.find(p => p.id === item.produtoId);
+              const prod = item.produto || produtos.find(p => p.id === item.produtoId);
               const isKG = prod?.unidade === 'KG';
+              const emPromo = prod && prod.precoPromocao && prod.precoPromocao > 0 && item.precoKg < prod.precoVenda;
               return (
                 <div key={item.id} className="bg-white border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between group hover:border-amber-400 transition-colors">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -585,6 +649,9 @@ function VisaoMesa({ comanda: inicial, produtos, vendidosCount, onVoltar, onFech
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-base font-bold text-stone-900 leading-tight">{item.nome}</span>
+                        {emPromo && (
+                          <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
+                        )}
                         {item.criadoEm && (
                           <span className="text-[11px] font-normal text-stone-500 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded leading-none flex-shrink-0" title={`Incluso em ${formatarData(item.criadoEm)}`}>
                             {formatarData(item.criadoEm)}

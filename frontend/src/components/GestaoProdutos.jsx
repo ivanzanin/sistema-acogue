@@ -4,7 +4,7 @@ import api from '../utils/api';
 const CATEGORIAS_KG = ['Bovino', 'Suino', 'Frango', 'Embutido', 'Outros'];
 const CATEGORIAS_UN = ['Espetinho', 'Bebida', 'Porcao', 'Outros'];
 
-const VAZIO = { nome: '', precoVenda: '', custo: '', categoria: 'Bovino', unidade: 'KG', estoqueAtual: '', codigoBarras: '', validade: '' };
+const VAZIO = { nome: '', precoVenda: '', precoPromocao: '', custo: '', categoria: 'Bovino', unidade: 'KG', estoqueAtual: '', codigoBarras: '', validade: '' };
 
 const ICONE_CAT = {
   Bovino:'🥩', Suino:'🐷', Frango:'🍗', Embutido:'🌭', Espetinho:'🍢',
@@ -191,10 +191,19 @@ export default function GestaoProdutos() {
     }
   }, []);
 
-  const abrirNovo   = () => { setEditando(null); setForm(VAZIO); setErro(null); setModal(true); };
   const abrirEditar = (p) => {
     setEditando(p.id);
-    setForm({ nome: p.nome, precoVenda: p.precoVenda, custo: p.custo, categoria: p.categoria, unidade: p.unidade || 'KG', estoqueAtual: p.estoqueAtual, codigoBarras: p.codigoBarras || '', validade: p.validade ? new Date(p.validade).toISOString().split('T')[0] : '' });
+    setForm({
+      nome: p.nome,
+      precoVenda: p.precoVenda,
+      precoPromocao: p.precoPromocao !== undefined && p.precoPromocao !== null ? p.precoPromocao : '',
+      custo: p.custo,
+      categoria: p.categoria,
+      unidade: p.unidade || 'KG',
+      estoqueAtual: p.estoqueAtual,
+      codigoBarras: p.codigoBarras || '',
+      validade: p.validade ? new Date(p.validade).toISOString().split('T')[0] : ''
+    });
     setErro(null); setModal(true);
   };
 
@@ -288,17 +297,25 @@ export default function GestaoProdutos() {
                   className={inp} placeholder={form.unidade === 'UN' ? 'Ex: Espetinho de Frango' : 'Ex: Picanha'} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={lbl}>
-                    {form.unidade === 'UN' ? 'Preco por Unidade (R$)' : 'Preco Venda (R$/kg)'}
+                    {form.unidade === 'UN' ? 'Preço Normal (R$)' : 'Preço Normal (R$/kg)'} *
                   </label>
-                  <input type="number" value={form.precoVenda} onChange={e => setForm({...form, precoVenda: e.target.value})}
+                  <input type="number" step="0.01" value={form.precoVenda} onChange={e => setForm({...form, precoVenda: e.target.value})}
                     className={inp} placeholder={form.unidade === 'UN' ? '5.00' : '69.90'} />
                 </div>
                 <div>
+                  <label className={lbl}>
+                    Preço Promoção (R$)
+                    <span className="text-[10px] text-amber-600 block font-normal">(opcional)</span>
+                  </label>
+                  <input type="number" step="0.01" value={form.precoPromocao} onChange={e => setForm({...form, precoPromocao: e.target.value})}
+                    className={inp + " border-amber-300 focus:border-amber-500"} placeholder="0.00" />
+                </div>
+                <div>
                   <label className={lbl}>Custo (R$)</label>
-                  <input type="number" value={form.custo} onChange={e => setForm({...form, custo: e.target.value})}
+                  <input type="number" step="0.01" value={form.custo} onChange={e => setForm({...form, custo: e.target.value})}
                     className={inp} placeholder="0.00" />
                 </div>
               </div>
@@ -539,7 +556,19 @@ function TabelaProdutos({ produtos, unidade, onEditar, onDeletar, onAjustarEstoq
                   </div>
                 </td>
                 <td className="py-3 px-4 text-xs text-stone-600">{p.categoria}</td>
-                <td className="py-3 px-4 text-sm text-emerald-700 font-bold text-right">R$ {p.precoVenda.toFixed(2)}</td>
+                <td className="py-3 px-4 text-sm text-right">
+                  {p.precoPromocao && p.precoPromocao > 0 ? (
+                    <div>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">🔥 Promo</span>
+                        <span className="text-amber-700 font-bold font-mono">R$ {p.precoPromocao.toFixed(2)}</span>
+                      </div>
+                      <span className="text-[11px] text-stone-400 line-through block font-mono">R$ {p.precoVenda.toFixed(2)}</span>
+                    </div>
+                  ) : (
+                    <span className="text-emerald-700 font-bold font-mono">R$ {p.precoVenda.toFixed(2)}</span>
+                  )}
+                </td>
                 <td className="py-3 px-4 text-sm text-stone-600 text-right">R$ {p.custo.toFixed(2)}</td>
                 <td className="py-3 px-4 text-right">
                   <span className={`text-xs px-2 py-1 rounded font-bold ${ok ? 'bg-emerald-400/10 text-emerald-700' : 'bg-red-400/10 text-red-700'}`}>

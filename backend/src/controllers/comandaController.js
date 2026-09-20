@@ -8,7 +8,7 @@ exports.listar = async (req, res) => {
     const { ordem = 'desc' } = req.query;
     const comandas = await prisma.comanda.findMany({
       where: { tenantId, status: 'ABERTA' },
-      include: { itens: { orderBy: { criadoEm: 'asc' } } },
+      include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } },
       orderBy: { criadaEm: ordem === 'asc' ? 'asc' : 'desc' },
     });
     res.json(comandas);
@@ -27,7 +27,7 @@ exports.criar = async (req, res) => {
 
     const comanda = await prisma.comanda.create({
       data: { nomeCliente: nomeCliente.trim(), numeroMesa: mesa, tenantId },
-      include: { itens: true },
+      include: { itens: { include: { produto: true } } },
     });
     res.status(201).json(comanda);
   } catch (e) {
@@ -41,7 +41,7 @@ exports.buscar = async (req, res) => {
     const tenantId = getTenantId(req);
     const comanda = await prisma.comanda.findFirst({
       where: { id: toInt(req.params.id), tenantId },
-      include: { itens: { orderBy: { criadoEm: 'asc' } } },
+      include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } },
     });
     if (!comanda) return res.status(404).json({ erro: 'Comanda nao encontrada.' });
     res.json(comanda);
@@ -113,13 +113,16 @@ exports.adicionarItem = async (req, res) => {
     if (!produto) return res.status(404).json({ erro: 'Produto nao encontrado.' });
 
     const isUN = produto.unidade === 'UN';
-    const total = +(qtd * produto.precoVenda).toFixed(2);
+    const precoUnitarioItem = (produto.precoPromocao && produto.precoPromocao > 0)
+      ? produto.precoPromocao
+      : produto.precoVenda;
+    const total = +(qtd * precoUnitarioItem).toFixed(2);
 
     if (isUN && produto.estoqueAtual < qtd)
       return res.status(400).json({ erro: `Estoque insuficiente: ${produto.nome}. Disponivel: ${produto.estoqueAtual} un` });
 
     const ops = [
-      prisma.itemComanda.create({ data: { comandaId: comanda.id, produtoId: produto.id, nome: produto.nome, precoKg: produto.precoVenda, pesoKg: qtd, total } }),
+      prisma.itemComanda.create({ data: { comandaId: comanda.id, produtoId: produto.id, nome: produto.nome, precoKg: precoUnitarioItem, pesoKg: qtd, total } }),
       prisma.comanda.update({ where: { id: comanda.id }, data: { total: { increment: total } } }),
     ];
 
@@ -131,7 +134,10 @@ exports.adicionarItem = async (req, res) => {
     }
 
     await prisma.$transaction(ops);
-    const atualizada = await prisma.comanda.findUnique({ where: { id: comanda.id }, include: { itens: { orderBy: { criadoEm: 'asc' } } } });
+    const atualizada = await prisma.comanda.findUnique({
+      where: { id: comanda.id },
+      include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } }
+    });
     res.status(201).json(atualizada);
   } catch (e) {
     console.error('[comanda:addItem]', e.message);
@@ -182,23 +188,50 @@ exports.fechar = async (req, res) => {
     if (!comanda) return res.status(404).json({ erro: 'Comanda nao encontrada ou fechada.' });
     if (comanda.itens.length === 0) return res.status(400).json({ erro: 'Comanda sem itens.' });
 
-    const vp = toFloat(valorPago) || comanda.total;
-    const troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - comanda.total) : 0;
+    const isVoucher = formaPagamento === 'VOUCHER';
+
+    // Se pagar com VOUCHER, a promocao sai e o que vale e o precoVenda normal
+    let totalCobrado = 0;
+    const itensFinalizados = comanda.itens.map(i => {
+      const isDiversos = i.produto?.codigoBarras === '999' || i.produto?.nome === 'Diversos';
+      let precoUnitario = i.precoKg;
+      if (isVoucher && !isDiversos && i.produto?.precoVenda > 0) {
+        precoUnitario = i.produto.precoVenda;
+      }
+      const totalItem = +(i.pesoKg * precoUnitario).toFixed(2);
+      totalCobrado += totalItem;
+      return {
+        nome: i.nome,
+        peso: i.pesoKg,
+        precoKg: precoUnitario,
+        total: totalItem,
+        unidade: i.produto?.unidade || 'KG',
+        quantidade: i.pesoKg,
+      };
+    });
+    totalCobrado = +totalCobrado.toFixed(2);
+
+    const vp = toFloat(valorPago) || totalCobrado;
+    const troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalCobrado) : 0;
 
     await prisma.$transaction([
       prisma.caixa.create({
         data: {
-          data: inicioDia(), valorTotal: comanda.total,
-          itensJson: JSON.stringify(comanda.itens.map(i => ({
-            nome: i.nome, peso: i.pesoKg, precoKg: i.precoKg, total: i.total,
-            unidade: i.produto?.unidade || 'KG', quantidade: i.pesoKg,
-          }))),
-          formaPagamento, valorPago: vp, troco, tenantId,
+          data: inicioDia(),
+          valorTotal: totalCobrado,
+          itensJson: JSON.stringify(itensFinalizados),
+          formaPagamento,
+          valorPago: vp,
+          troco,
+          tenantId,
         },
       }),
-      prisma.comanda.update({ where: { id: comanda.id }, data: { status: 'FECHADA', fechadaEm: new Date() } }),
+      prisma.comanda.update({
+        where: { id: comanda.id },
+        data: { status: 'FECHADA', fechadaEm: new Date(), total: totalCobrado }
+      }),
     ]);
-    res.json({ mensagem: 'Comanda fechada.', total: comanda.total, troco });
+    res.json({ mensagem: 'Comanda fechada.', total: totalCobrado, troco });
   } catch (e) {
     console.error('[comanda:fechar]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao fechar comanda.' });

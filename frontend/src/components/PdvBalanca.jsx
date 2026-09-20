@@ -443,6 +443,8 @@ export default function PdvBalanca() {
       return;
     }
     const qtd = Math.max(1, multiplicador);
+    const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+    const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
     setItensCarrinho(prev => {
       const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
       if (idx >= 0) {
@@ -451,7 +453,7 @@ export default function PdvBalanca() {
         novo[idx] = {
           ...novo[idx],
           peso: String(novaQtd),
-          total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2),
+          total: +(novaQtd * novo[idx].precoKg).toFixed(2),
         };
         registrarUltimoItem(novo[idx]);
         return novo;
@@ -459,9 +461,12 @@ export default function PdvBalanca() {
       const novoItem = {
         id: produto.id,
         nome: produto.nome,
-        precoKg: produto.precoVenda,
+        precoKg: precoAtivo,
+        precoNormal: produto.precoVenda,
+        precoPromocao: produto.precoPromocao || null,
+        emPromocao: !!temPromo,
         peso: String(qtd),
-        total: +(qtd * produto.precoVenda).toFixed(2),
+        total: +(qtd * precoAtivo).toFixed(2),
         unidade: 'UN',
         uid: Date.now() + Math.random(),
       };
@@ -490,7 +495,32 @@ export default function PdvBalanca() {
   }, [valorPago]);
 
   const cliente = (() => { try { return JSON.parse(localStorage.getItem('cliente')); } catch { return null; } })();
-  const totalGeral = itensCarrinho.reduce((s, i) => s + i.total, 0);
+
+  // Regra de Voucher: se for pago com VOUCHER (único ou se alguma pessoa pagar com Voucher na divisão),
+  // a promoção é cancelada e o valor aplicado é o Preço Normal (precoNormal).
+  const isVoucherAtivo = (!modoDividido && formaPagamento === 'VOUCHER') ||
+    (modoDividido && divisoes.some(d => d.forma === 'VOUCHER'));
+
+  const itensCalculados = itensCarrinho.map(item => {
+    if (isVoucherAtivo && item.emPromocao && item.precoNormal > 0) {
+      const totalNormal = +(parseFloat(item.peso) * item.precoNormal).toFixed(2);
+      return {
+        ...item,
+        precoKgCobrado: item.precoNormal,
+        totalCobrado: totalNormal,
+        promocaoRemovidaPorVoucher: true,
+      };
+    }
+    return {
+      ...item,
+      precoKgCobrado: item.precoKg,
+      totalCobrado: item.total,
+      promocaoRemovidaPorVoucher: false,
+    };
+  });
+
+  const totalGeral = itensCalculados.reduce((s, i) => s + i.totalCobrado, 0);
+  const temItensComPromocao = itensCarrinho.some(i => i.emPromocao);
   const troco = formaPagamento === 'DINHEIRO' && parseFloat(valorPago) > totalGeral
     ? parseFloat(valorPago) - totalGeral : 0;
 
@@ -598,10 +628,20 @@ export default function PdvBalanca() {
       // Caso 1: código de balança KG — já vem com peso e valor calculados
       if (produto.balancaInfo && produto.unidade === 'KG' && produto.balancaInfo.pesoCalculado) {
         const peso  = +(produto.balancaInfo.pesoCalculado * multiplicador).toFixed(3);
-        const total = +(produto.balancaInfo.valorTotal * multiplicador).toFixed(2);
+        const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+        const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
+        const total = +(peso * precoAtivo).toFixed(2);
         const novoItem = {
-          id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-          peso: peso.toFixed(3), total, unidade: 'KG', uid: Date.now() + Math.random()
+          id: produto.id,
+          nome: produto.nome,
+          precoKg: precoAtivo,
+          precoNormal: produto.precoVenda,
+          precoPromocao: produto.precoPromocao || null,
+          emPromocao: !!temPromo,
+          peso: peso.toFixed(3),
+          total,
+          unidade: 'KG',
+          uid: Date.now() + Math.random()
         };
         setItensCarrinho(prev => [...prev, novoItem]);
         registrarUltimoItem(novoItem);
@@ -617,18 +657,32 @@ export default function PdvBalanca() {
 
       // Caso 3: produto UN — adiciona 1 (ou multiplicador)
       const qtd = Math.max(1, multiplicador);
+      const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+      const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
       setItensCarrinho(prev => {
         const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
         if (idx >= 0) {
           const novo = [...prev];
           const novaQtd = parseFloat(novo[idx].peso) + qtd;
-          novo[idx] = { ...novo[idx], peso: String(novaQtd), total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2) };
+          novo[idx] = {
+            ...novo[idx],
+            peso: String(novaQtd),
+            total: +(novaQtd * novo[idx].precoKg).toFixed(2)
+          };
           registrarUltimoItem(novo[idx]);
           return novo;
         }
         const novoItem = {
-          id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-          peso: String(qtd), total: +(qtd * produto.precoVenda).toFixed(2), unidade: 'UN', uid: Date.now() + Math.random()
+          id: produto.id,
+          nome: produto.nome,
+          precoKg: precoAtivo,
+          precoNormal: produto.precoVenda,
+          precoPromocao: produto.precoPromocao || null,
+          emPromocao: !!temPromo,
+          peso: String(qtd),
+          total: +(qtd * precoAtivo).toFixed(2),
+          unidade: 'UN',
+          uid: Date.now() + Math.random()
         };
         registrarUltimoItem(novoItem);
         return [...prev, novoItem];
@@ -665,18 +719,7 @@ export default function PdvBalanca() {
       const produto = data.find(p => p.id === produtoId);
       if (produto?.unidade === 'KG') setProdutoKGPendente(produto);
       else if (produto) {
-        setItensCarrinho(prev => {
-          const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
-          if (idx >= 0) {
-            const novo = [...prev];
-            novo[idx] = { ...novo[idx], peso: String(parseFloat(novo[idx].peso) + 1), total: novo[idx].total + produto.precoVenda };
-            return novo;
-          }
-          return [...prev, {
-            id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-            peso: '1', total: produto.precoVenda, unidade: 'UN', uid: Date.now()
-          }];
-        });
+        adicionarProdutoPorObjeto(produto);
       }
     } catch (e) {
       alert('Erro ao vincular: ' + (e.response?.data?.erro || e.message));
@@ -730,10 +773,20 @@ export default function PdvBalanca() {
   }, [itensCarrinho, salvando, confirmar, pixModalInfo, modoDividido, divisoes, valorPago, totalGeral]);
 
   const adicionarKGManual = (produto, peso) => {
-    const total = +(peso * produto.precoVenda).toFixed(2);
+    const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+    const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
+    const total = +(peso * precoAtivo).toFixed(2);
     const novoItem = {
-      id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-      peso: peso.toFixed(3), total, unidade: 'KG', uid: Date.now() + Math.random()
+      id: produto.id,
+      nome: produto.nome,
+      precoKg: precoAtivo,
+      precoNormal: produto.precoVenda,
+      precoPromocao: produto.precoPromocao || null,
+      emPromocao: !!temPromo,
+      peso: peso.toFixed(3),
+      total,
+      unidade: 'KG',
+      uid: Date.now() + Math.random()
     };
     setItensCarrinho(prev => [...prev, novoItem]);
     registrarUltimoItem(novoItem);
@@ -743,18 +796,32 @@ export default function PdvBalanca() {
 
   const adicionarUN = (produto) => {
     const qtd = qtds[produto.id] || 1;
+    const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+    const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
     setItensCarrinho(prev => {
       const idx = prev.findIndex(i => i.id === produto.id && i.unidade === 'UN');
       if (idx >= 0) {
         const novo = [...prev];
         const novaQtd = parseFloat(novo[idx].peso) + qtd;
-        novo[idx] = { ...novo[idx], peso: String(novaQtd), total: +(novo[idx].total + produto.precoVenda * qtd).toFixed(2) };
+        novo[idx] = {
+          ...novo[idx],
+          peso: String(novaQtd),
+          total: +(novaQtd * novo[idx].precoKg).toFixed(2)
+        };
         registrarUltimoItem(novo[idx]);
         return novo;
       }
       const novoItem = {
-        id: produto.id, nome: produto.nome, precoKg: produto.precoVenda,
-        peso: String(qtd), total: +(qtd * produto.precoVenda).toFixed(2), unidade: 'UN', uid: Date.now() + Math.random()
+        id: produto.id,
+        nome: produto.nome,
+        precoKg: precoAtivo,
+        precoNormal: produto.precoVenda,
+        precoPromocao: produto.precoPromocao || null,
+        emPromocao: !!temPromo,
+        peso: String(qtd),
+        total: +(qtd * precoAtivo).toFixed(2),
+        unidade: 'UN',
+        uid: Date.now() + Math.random()
       };
       registrarUltimoItem(novoItem);
       return [...prev, novoItem];
@@ -780,9 +847,13 @@ export default function PdvBalanca() {
     if (itensCarrinho.length === 0 || salvando) return;
 
     let payloadVenda = {
-      itens: itensCarrinho.map(i => ({
-        nome: i.nome, peso: i.peso, precoKg: i.precoKg, total: i.total,
-        unidade: i.unidade || 'UN', produtoId: i.id,
+      itens: itensCalculados.map(i => ({
+        nome: i.nome,
+        peso: i.peso,
+        precoKg: i.precoKgCobrado,
+        total: i.totalCobrado,
+        unidade: i.unidade || 'UN',
+        produtoId: i.id,
       }))
     };
 
@@ -820,7 +891,11 @@ export default function PdvBalanca() {
       const { data } = await api.post('/gestao/venda', payloadVenda);
       setUltimaVendaId(data.vendaId);
       imprimirCupom(
-        itensCarrinho,
+        itensCalculados.map(i => ({
+          ...i,
+          precoKg: i.precoKgCobrado,
+          total: i.totalCobrado,
+        })),
         totalGeral,
         cliente?.nomeAcougue,
         modoDividido ? 'MULTIPLO' : formaPagamento,
@@ -1030,6 +1105,20 @@ export default function PdvBalanca() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1">
+              {isVoucherAtivo && temItensComPromocao && (
+                <div className="mb-3 p-3 bg-amber-50 border-2 border-amber-300 rounded-lg flex items-start gap-2.5">
+                  <span className="text-xl leading-none">🎫</span>
+                  <div>
+                    <p className="text-xs font-bold text-amber-900">
+                      Voucher Selecionado (Preço Normal Aplicado)
+                    </p>
+                    <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                      Os itens com desconto promocional foram recalculados automaticamente pelo <strong>preço normal</strong> de cadastro. A promoção é válida apenas para pagamentos em Dinheiro, PIX e Cartões.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {!modoDividido ? (
                 <>
                   {/* Seletor de Forma de Pagamento Única */}
@@ -1432,14 +1521,30 @@ export default function PdvBalanca() {
                   {prods.map(p => {
                     const isUN = p.unidade === 'UN';
                     const qtd = qtds[p.id] || 1;
+                    const temPromo = p.precoPromocao && p.precoPromocao > 0;
+                    const precoAtivo = temPromo ? p.precoPromocao : p.precoVenda;
                     return (
                       <div key={p.id} className="flex items-center justify-between px-4 py-3 border-b border-stone-200/40 hover:bg-stone-100/30 transition-colors">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold text-stone-900 truncate">{p.nome}</p>
                             {p.codigoBarras && <span className="text-xs text-stone-500 font-mono flex-shrink-0">{p.codigoBarras}</span>}
+                            {temPromo && (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30">🔥 Promo</span>
+                            )}
                           </div>
-                          <p className="text-xs text-emerald-700 font-bold mt-0.5">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
+                          {temPromo ? (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <p className="text-xs text-amber-700 font-bold font-mono">
+                                R$ {p.precoPromocao.toFixed(2)}/{isUN ? 'un' : 'kg'}
+                              </p>
+                              <p className="text-[11px] text-stone-400 line-through font-mono">
+                                R$ {p.precoVenda.toFixed(2)}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-emerald-700 font-bold mt-0.5">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
+                          )}
                         </div>
                         {isUN ? (
                           <div className="flex items-center gap-2 ml-3 flex-shrink-0">
@@ -1449,7 +1554,7 @@ export default function PdvBalanca() {
                               <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">+</button>
                             </div>
                             <button onClick={() => adicionarUN(p)} className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
-                              + {(p.precoVenda * qtd).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}
+                              + {(precoAtivo * qtd).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}
                             </button>
                           </div>
                         ) : (
@@ -1486,7 +1591,12 @@ export default function PdvBalanca() {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <span className="text-stone-400 text-xs font-bold w-5 text-center flex-shrink-0">{idx+1}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
+                        {item.emPromocao && (
+                          <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
+                        )}
+                      </div>
                       <p className="text-sm text-stone-500 mt-0.5">
                         {item.unidade === 'UN' ? `${item.peso} un` : `${item.peso} kg`}
                         <span className="mx-1 text-stone-300">×</span>
@@ -1618,7 +1728,12 @@ export default function PdvBalanca() {
 
                         {/* Nome */}
                         <div className="col-span-5 pr-2">
-                          <p className="font-bold text-stone-900 text-sm truncate">{item.nome}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-stone-900 text-sm truncate">{item.nome}</p>
+                            {item.emPromocao && (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-stone-500 font-mono">
                             {item.unidade === 'UN' ? 'Unidade' : 'Quilo (KG)'}
                           </span>
@@ -1790,11 +1905,25 @@ export default function PdvBalanca() {
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-bold text-emerald-700 font-mono">
-                              R$ {prod.precoVenda.toFixed(2)}
-                              <span className="text-xs text-stone-500 font-normal">/{prod.unidade === 'UN' ? 'un' : 'kg'}</span>
-                            </p>
-                            <span className="text-[10px] text-stone-400 font-mono">
+                            {prod.precoPromocao && prod.precoPromocao > 0 ? (
+                              <div>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <span className="text-[9px] bg-amber-500/15 text-amber-800 font-bold px-1 py-0.2 rounded">🔥 Promo</span>
+                                  <p className="text-sm font-bold text-amber-700 font-mono">
+                                    R$ {prod.precoPromocao.toFixed(2)}
+                                  </p>
+                                </div>
+                                <span className="text-[11px] text-stone-400 line-through font-mono">
+                                  R$ {prod.precoVenda.toFixed(2)}/{prod.unidade === 'UN' ? 'un' : 'kg'}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-bold text-emerald-700 font-mono">
+                                R$ {prod.precoVenda.toFixed(2)}
+                                <span className="text-xs text-stone-500 font-normal">/{prod.unidade === 'UN' ? 'un' : 'kg'}</span>
+                              </p>
+                            )}
+                            <span className="text-[10px] text-stone-400 font-mono block">
                               {prod.unidade === 'UN' ? 'Enter para adicionar' : 'Enter para digitar peso'}
                             </span>
                           </div>
