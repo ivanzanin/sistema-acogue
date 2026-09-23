@@ -25,33 +25,51 @@ function ModalPesoKG({ produto, onConfirmar, onCancelar }) {
     onConfirmar(p);
   };
 
+  const temPromo = produto.precoPromocao && produto.precoPromocao > 0;
+  const precoAtivo = temPromo ? produto.precoPromocao : produto.precoVenda;
+  const pesoNum = parseFloat(peso.replace(',', '.')) || 0;
+  const totalItem = +(pesoNum * precoAtivo).toFixed(2);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm">
-      <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-sm shadow-modal">
-        <p className="text-xs text-stone-500 font-medium mb-1">Produto KG detectado</p>
-        <p className="text-lg font-bold text-stone-900 mb-1">{produto.nome}</p>
-        <p className="text-sm text-emerald-700 mb-5">R$ {produto.precoVenda.toFixed(2)}/kg</p>
-        <label className="block text-xs text-stone-500 font-medium mb-1.5">Peso (kg)</label>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
+      <div className="bg-white border-2 border-stone-200 rounded-3xl p-7 w-full max-w-md shadow-modal">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">⚖️</span>
+          <p className="text-xs font-black uppercase tracking-wider text-stone-500">Produto por Quilo (KG)</p>
+        </div>
+        <p className="text-2xl font-black text-stone-900 mb-1.5 leading-snug">{produto.nome}</p>
+        {temPromo ? (
+          <div className="flex items-center gap-2 mb-5">
+            <span className="text-xs bg-amber-500/15 text-amber-800 font-black px-2 py-0.5 rounded-md border border-amber-500/30">🔥 Promo</span>
+            <span className="text-lg font-black text-amber-700 font-mono">R$ {produto.precoPromocao.toFixed(2)}/kg</span>
+            <span className="text-xs text-stone-400 line-through font-mono">R$ {produto.precoVenda.toFixed(2)}/kg</span>
+          </div>
+        ) : (
+          <p className="text-base font-bold text-emerald-700 font-mono mb-5">R$ {produto.precoVenda.toFixed(2)}/kg</p>
+        )}
+
+        <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-600 mb-1.5">Digite o Peso (kg)</label>
         <input
           ref={inputRef}
           type="number" step="0.001" value={peso}
           onChange={e => setPeso(e.target.value)}
           placeholder="0.000"
-          className="w-full bg-stone-100 border border-stone-300 rounded-lg px-4 py-3 text-stone-900 text-2xl font-bold font-mono focus:outline-none focus:border-brand-500 text-right mb-2"
+          className="w-full bg-stone-100 border-2 border-stone-300 focus:border-brand-500 rounded-2xl px-5 py-4 text-stone-900 text-3xl font-black font-mono focus:outline-none text-right mb-3 transition-colors"
           onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
         />
-        {parseFloat(peso) > 0 && (
-          <p className="text-right text-emerald-700 text-sm font-bold mb-4">
-            = R$ {(parseFloat(peso.replace(',','.')) * produto.precoVenda).toFixed(2)}
-          </p>
+        {pesoNum > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex justify-between items-center mb-5">
+            <span className="text-xs font-bold text-emerald-800">Total calculado:</span>
+            <span className="text-2xl font-black text-emerald-800 font-mono">R$ {totalItem.toFixed(2)}</span>
+          </div>
         )}
         <div className="flex gap-3">
           <button onClick={confirmar} disabled={!peso || parseFloat(peso) <= 0}
-            className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded-lg transition-all active:scale-95">
+            className="flex-1 py-4 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-black text-sm uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-md">
             Adicionar (Enter)
           </button>
           <button onClick={onCancelar}
-            className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded-lg transition-all">
+            className="flex-1 py-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm rounded-2xl transition-all">
             Cancelar (Esc)
           </button>
         </div>
@@ -90,31 +108,31 @@ function ModalItemDiversos({ onConfirmar, onCancelar }) {
   const totalItem = vNum * (parseInt(qtd) || 1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-sm shadow-modal">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-2xl">🏷️</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
+      <div className="bg-white border-2 border-stone-200 rounded-3xl p-7 w-full max-w-md shadow-modal">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-3xl">🏷️</span>
           <div>
-            <p className="text-base font-bold text-stone-900">Item Avulso / Diversos (999)</p>
-            <p className="text-xs text-stone-500">Adicionar produto com valor livre na venda</p>
+            <p className="text-lg font-black text-stone-900">Item Avulso / Diversos (999)</p>
+            <p className="text-xs text-stone-500 font-medium">Adicionar produto com valor livre na venda</p>
           </div>
         </div>
 
-        <div className="space-y-3 mb-4">
+        <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Descrição do Item</label>
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-600 mb-1.5">Descrição do Item</label>
             <input
               type="text"
               value={descricao}
               onChange={e => setDescricao(e.target.value)}
               placeholder="Ex: Diversos, Tempero especial, Gelo..."
-              className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:border-brand-500 font-sans"
+              className="w-full bg-stone-50 border-2 border-stone-300 focus:border-brand-500 rounded-xl px-4 py-3 text-stone-900 text-base font-bold focus:outline-none font-sans transition-colors"
               onKeyDown={e => { if (e.key === 'Enter') valorInputRef.current?.focus(); if (e.key === 'Escape') onCancelar(); }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Valor Unitário (R$) *</label>
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-600 mb-1.5">Valor Unitário (R$) *</label>
             <input
               ref={valorInputRef}
               type="number"
@@ -122,18 +140,18 @@ function ModalItemDiversos({ onConfirmar, onCancelar }) {
               value={valor}
               onChange={e => setValor(e.target.value)}
               placeholder="0,00"
-              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-4 py-3 text-stone-900 text-2xl font-bold font-mono focus:outline-none focus:border-brand-500 text-right"
+              className="w-full bg-stone-100 border-2 border-stone-300 focus:border-brand-500 rounded-2xl px-5 py-3.5 text-stone-900 text-3xl font-black font-mono focus:outline-none text-right transition-colors"
               onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Quantidade</label>
-            <div className="flex items-center gap-2">
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-600 mb-1.5">Quantidade</label>
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setQtd(q => Math.max(1, (parseInt(q) || 1) - 1))}
-                className="w-9 h-9 rounded-lg border border-stone-300 bg-stone-100 hover:bg-stone-200 font-bold text-base flex items-center justify-center">
+                className="w-12 h-12 rounded-xl border-2 border-stone-300 bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-xl flex items-center justify-center transition-colors">
                 −
               </button>
               <input
@@ -141,36 +159,36 @@ function ModalItemDiversos({ onConfirmar, onCancelar }) {
                 min="1"
                 value={qtd}
                 onChange={e => setQtd(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 text-center py-2 border border-stone-300 rounded-lg font-bold text-sm"
+                className="flex-1 text-center py-2.5 border-2 border-stone-300 rounded-xl font-black text-lg bg-stone-50"
                 onKeyDown={e => { if (e.key === 'Enter') confirmar(); if (e.key === 'Escape') onCancelar(); }}
               />
               <button
                 type="button"
                 onClick={() => setQtd(q => (parseInt(q) || 1) + 1)}
-                className="w-9 h-9 rounded-lg border border-stone-300 bg-stone-100 hover:bg-stone-200 font-bold text-base flex items-center justify-center">
+                className="w-12 h-12 rounded-xl border-2 border-stone-300 bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-xl flex items-center justify-center transition-colors">
                 +
               </button>
             </div>
           </div>
 
           {vNum > 0 && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
-              <span className="text-emerald-700 font-medium">Total do item:</span>
-              <span className="font-bold text-emerald-800 text-sm font-mono">R$ {totalItem.toFixed(2)}</span>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center text-xs">
+              <span className="text-amber-800 font-bold">Total do item:</span>
+              <span className="font-black text-amber-900 text-lg font-mono">R$ {totalItem.toFixed(2)}</span>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button
             onClick={confirmar}
             disabled={!vNum || vNum <= 0}
-            className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded-lg transition-all active:scale-95">
+            className="flex-1 py-4 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-black text-sm uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-md">
             Adicionar (Enter)
           </button>
           <button
             onClick={onCancelar}
-            className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded-lg transition-all">
+            className="flex-1 py-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm rounded-2xl transition-all">
             Cancelar (Esc)
           </button>
         </div>
@@ -268,85 +286,77 @@ function ModalCodigoNaoEncontrado({ codigo, balanca, codigoProduto, valorTotal, 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'80vh'}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
+      <div className="bg-white border-2 border-stone-200 rounded-3xl w-full max-w-lg shadow-modal overflow-hidden flex flex-col" style={{maxHeight:'85vh'}}>
         {/* Header */}
-        <div className="px-6 py-5 border-b border-stone-200">
+        <div className="p-6 border-b border-stone-200">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl">⚠️</span>
-            <p className="font-bold text-stone-900 text-base">Código não cadastrado</p>
+            <p className="font-black text-stone-900 text-lg">Código não cadastrado</p>
           </div>
-          <p className="text-sm text-stone-600">
-            O código <span className="font-mono font-bold text-amber-600">{codigo}</span> não está vinculado a nenhum produto.
+          <p className="text-sm font-medium text-stone-600">
+            O código <span className="font-mono font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">{codigo}</span> não está vinculado a nenhum produto.
           </p>
           {balanca && (
-            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              <p className="text-xs text-blue-700 font-bold mb-1">🏷️ Etiqueta com Peso/Preço Detectada</p>
-              <p className="text-xs text-blue-600">Código do produto: <span className="font-mono font-bold">{codigoProduto}</span></p>
-              <p className="text-xs text-blue-600">Valor calculado: <span className="font-mono font-bold">R$ {valorTotal?.toFixed(2)}</span></p>
-              <p className="text-xs text-blue-500 mt-1">Cadastre o produto com o código <span className="font-mono font-bold">{codigoProduto}</span> para que nas próximas leituras o leitor identifique o item e calcule o peso/valor automaticamente.</p>
+            <div className="mt-3.5 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+              <p className="text-xs font-black uppercase tracking-wider text-blue-800 mb-1">🏷️ Etiqueta com Peso/Preço Detectada</p>
+              <p className="text-sm text-blue-900">Código do produto: <span className="font-mono font-black">{codigoProduto}</span></p>
+              <p className="text-sm text-blue-900">Valor calculado: <span className="font-mono font-black">R$ {valorTotal?.toFixed(2)}</span></p>
+              <p className="text-xs text-blue-600 mt-2 font-medium">Cadastre o produto com o código <span className="font-mono font-bold">{codigoProduto}</span> para que nas próximas leituras o leitor identifique o item e calcule o peso/valor automaticamente.</p>
             </div>
           )}
         </div>
 
         {/* Opção 1: Cadastrar novo produto */}
-        <div className="p-6 border-b border-stone-200">
-          <p className="text-xs font-semibold text-stone-500 mb-3">Opção 1 — Cadastrar Novo</p>
+        <div className="p-6 border-b border-stone-200 bg-stone-50/50">
+          <p className="text-xs font-black uppercase tracking-wider text-stone-500 mb-2">Opção 1 — Cadastrar Novo</p>
           <button onClick={onCadastrar}
-            className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide text-white transition-all active:scale-95"
+            className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider text-white transition-all active:scale-95 shadow-md hover:brightness-105"
             style={{background:'#D4890E'}}>
             + Cadastrar Novo Produto
           </button>
-          <p className="text-xs text-stone-500 mt-2">Vai abrir a tela de Produtos com o código já preenchido.</p>
+          <p className="text-xs text-stone-500 mt-2 font-medium">Abre a tela de Produtos com o código já preenchido.</p>
         </div>
 
         {/* Opção 2: Vincular a produto existente */}
-        <div className="px-6 pt-6 pb-3 flex-shrink-0">
-          <p className="text-xs font-semibold text-stone-500 mb-3">Opção 2 — Vincular a Produto Existente</p>
+        <div className="px-6 pt-5 pb-3 flex-shrink-0">
+          <p className="text-xs font-black uppercase tracking-wider text-stone-500 mb-2">Opção 2 — Vincular a Produto Existente</p>
           <div className="relative mb-3">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">🔍</span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-base">🔍</span>
             <input ref={inputRef} value={busca} onChange={e => setBusca(e.target.value)}
-              placeholder="Buscar produto..."
-              className="w-full bg-white border border-stone-300 rounded-lg pl-9 pr-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:border-brand-600" />
+              placeholder="Buscar produto cadastrado..."
+              className="w-full bg-stone-100 hover:bg-white focus:bg-white border-2 border-stone-200 focus:border-brand-500 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-stone-900 focus:outline-none transition-colors" />
           </div>
         </div>
-        <div style={{padding:'0 24px 12px', flex:1, overflowY:'auto', maxHeight:'220px'}}>
+        <div className="px-6 pb-4 flex-1 overflow-y-auto space-y-2" style={{maxHeight:'220px'}}>
           {filtrados.length === 0 ? (
-            <p style={{textAlign:'center', color:'#94A3B8', fontSize:'12px', padding:'16px 0'}}>Nenhum produto encontrado</p>
+            <p className="text-center text-stone-400 text-xs py-4 font-medium">Nenhum produto encontrado</p>
           ) : (
-            <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
-              {filtrados.map(p => (
-                <button key={p.id} onClick={() => onVincular(p.id)}
-                  style={{
-                    width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-                    padding:'10px 12px', borderRadius:'8px', border:'1.5px solid #E2E8F0',
-                    background:'white', cursor:'pointer', textAlign:'left', transition:'all 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background='#F8FAFC'; e.currentTarget.style.borderColor='#D97706'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background='white'; e.currentTarget.style.borderColor='#E2E8F0'; }}>
-                  <div style={{flex:1, minWidth:0}}>
-                    <p style={{fontWeight:700, fontSize:'14px', color:'#1E293B', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:'2px'}}>
-                      {p.nome}
-                    </p>
-                    <p style={{fontSize:'12px', color:'#64748B'}}>{p.categoria} · {p.unidade}</p>
-                  </div>
-                  <div style={{textAlign:'right', marginLeft:'12px', flexShrink:0}}>
-                    <p style={{fontWeight:700, fontSize:'13px', color:'#16A34A'}}>R$ {p.precoVenda.toFixed(2)}</p>
-                    {p.codigoBarras && (
-                      <p style={{fontSize:'11px', color:'#D97706', fontFamily:'monospace', fontWeight:600}}>já tem código</p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+            filtrados.map(p => (
+              <button key={p.id} onClick={() => onVincular(p.id)}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl border-2 border-stone-200 hover:border-amber-500 hover:bg-amber-50/30 bg-white transition-all text-left">
+                <div className="flex-1 min-w-0 pr-3">
+                  <p className="font-black text-sm text-stone-900 truncate">
+                    {p.nome}
+                  </p>
+                  <p className="text-xs font-medium text-stone-500">{p.categoria} · {p.unidade}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="font-black text-sm text-emerald-700 font-mono">R$ {p.precoVenda.toFixed(2)}</p>
+                  {p.codigoBarras && (
+                    <p className="text-xs text-amber-600 font-mono font-bold">já tem código</p>
+                  )}
+                </div>
+              </button>
+            ))
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-stone-200">
+        <div className="p-4 border-t border-stone-200 bg-stone-50">
           <button onClick={onFechar}
-            className="w-full py-2.5 rounded-lg text-sm text-stone-700 hover:bg-stone-100 transition-colors">
-            Cancelar
+            className="w-full py-3 rounded-xl text-sm font-bold text-stone-700 hover:bg-stone-200 transition-colors">
+            Cancelar (Esc)
           </button>
         </div>
       </div>
@@ -1038,7 +1048,7 @@ export default function PdvBalanca() {
   }, [modoLayout, confirmar, produtoKGPendente, itemDiversosAberto, codigoNaoEncontrado, pixModalInfo, itensCarrinho.length]);
 
   return (
-    <div className="h-screen bg-page text-stone-900 flex flex-col select-none font-mono overflow-hidden">
+    <div className="h-screen bg-page text-stone-900 flex flex-col select-none font-sans overflow-hidden">
 
       {/* MODAL CÓDIGO NÃO ENCONTRADO */}
       {codigoNaoEncontrado && (
@@ -1092,27 +1102,27 @@ export default function PdvBalanca() {
       {/* MODAL FINALIZAR */}
       {confirmar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white border border-stone-200 rounded-xl p-5 w-full max-w-lg shadow-modal max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-3 flex-shrink-0">
+          <div className="bg-white border-2 border-stone-200 rounded-3xl p-6 sm:p-7 w-full max-w-xl shadow-modal max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 mb-4 flex-shrink-0">
               <div>
-                <p className="text-base font-bold text-stone-900">Finalizar Venda</p>
-                <p className="text-[11px] text-stone-500">Confirme o recebimento e os métodos de pagamento</p>
+                <p className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">Finalizar Venda</p>
+                <p className="text-xs sm:text-sm text-stone-500 font-medium">Confirme o recebimento e selecione o método de pagamento</p>
               </div>
               <div className="text-right">
-                <span className="text-[11px] text-stone-500 font-medium block">Total Geral</span>
-                <span className="text-2xl font-bold text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
+                <span className="text-xs font-black uppercase tracking-wider text-stone-400 block mb-0.5">Total Geral</span>
+                <span className="text-3xl sm:text-4xl font-black text-stone-900 font-mono tracking-tight">R$ {totalGeral.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1">
               {isVoucherAtivo && temItensComPromocao && (
-                <div className="mb-3 p-3 bg-amber-50 border-2 border-amber-300 rounded-lg flex items-start gap-2.5">
-                  <span className="text-xl leading-none">🎫</span>
+                <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex items-start gap-3">
+                  <span className="text-2xl leading-none">🎫</span>
                   <div>
-                    <p className="text-xs font-bold text-amber-900">
+                    <p className="text-sm font-black text-amber-900">
                       Voucher Selecionado (Preço Normal Aplicado)
                     </p>
-                    <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                       Os itens com desconto promocional foram recalculados automaticamente pelo <strong>preço normal</strong> de cadastro. A promoção é válida apenas para pagamentos em Dinheiro, PIX e Cartões.
                     </p>
                   </div>
@@ -1122,29 +1132,29 @@ export default function PdvBalanca() {
               {!modoDividido ? (
                 <>
                   {/* Seletor de Forma de Pagamento Única */}
-                  <div className="grid grid-cols-5 gap-2 mb-3">
+                  <div className="grid grid-cols-5 gap-2.5 mb-4">
                     {FORMAS.map(f => (
                       <button key={f.id} onClick={() => { setFormaPagamento(f.id); if (f.id !== 'DINHEIRO') setValorPago(''); }}
-                        className={`flex flex-col items-center py-2.5 rounded-lg border-2 text-xs font-bold uppercase tracking-wide transition-all ${formaPagamento === f.id ? f.cor : 'border-stone-300 text-stone-500 hover:border-stone-400'}`}>
-                        <span className="text-xl mb-1">{f.icon}</span>{f.label}
+                        className={`flex flex-col items-center py-3.5 sm:py-4 rounded-2xl border-2 text-xs sm:text-sm font-black uppercase tracking-wide transition-all ${formaPagamento === f.id ? f.cor : 'border-stone-200 bg-stone-50/50 text-stone-600 hover:border-stone-400'}`}>
+                        <span className="text-2xl sm:text-3xl mb-1.5">{f.icon}</span>{f.label}
                       </button>
                     ))}
                   </div>
 
                   {/* Card para Ativar Divisão da Conta */}
-                  <div className="mb-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between gap-2">
+                  <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3">
                     <div>
-                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                        <span>🍽️</span> Dividir conta entre várias pessoas?
+                      <span className="text-sm font-black text-emerald-900 flex items-center gap-2">
+                        <span className="text-lg">🍽️</span> Dividir conta entre várias pessoas?
                       </span>
-                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                      <p className="text-xs text-emerald-700 mt-1 font-medium">
                         Receba de cada pessoa com um método diferente (ex: 2 no PIX, 3 no cartão).
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={ativarDivisao}
-                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded shadow-sm transition-all flex items-center gap-1 flex-shrink-0"
+                      className="text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 flex-shrink-0"
                     >
                       <span>Dividir</span>
                       <span>→</span>
@@ -1158,21 +1168,21 @@ export default function PdvBalanca() {
 
                   {/* SEÇÃO DINHEIRO */}
                   {formaPagamento === 'DINHEIRO' && (
-                    <div className="mb-3">
-                      <label className="block text-xs text-stone-500 font-medium mb-1">Valor Recebido</label>
+                    <div className="mb-4">
+                      <label className="block text-xs font-black uppercase tracking-wider text-stone-600 mb-1.5">Valor Recebido do Cliente (R$)</label>
                       <input type="number" value={valorPago} onChange={e => setValorPago(e.target.value)}
                         placeholder={totalGeral.toFixed(2)} autoFocus
-                        className="w-full bg-stone-100 border border-stone-300 rounded px-4 py-2.5 text-stone-900 text-xl font-bold focus:outline-none focus:border-brand-500 font-mono text-right"
+                        className="w-full bg-stone-100 border-2 border-stone-300 focus:border-brand-500 rounded-2xl px-5 py-3.5 text-stone-900 text-3xl font-black focus:outline-none font-mono text-right transition-colors"
                         onKeyDown={e => e.key === 'Enter' && finalizarVenda()} />
                       {troco > 0 && (
-                        <div className="mt-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-2 flex justify-between items-center">
-                          <span className="text-emerald-700 text-xs font-semibold">Troco</span>
-                          <span className="text-emerald-700 text-xl font-bold font-mono">R$ {troco.toFixed(2)}</span>
+                        <div className="mt-3 bg-emerald-500/15 border-2 border-emerald-500/40 rounded-2xl px-5 py-3.5 flex justify-between items-center">
+                          <span className="text-emerald-800 text-sm font-black uppercase tracking-wider">Troco a Devolver</span>
+                          <span className="text-emerald-800 text-3xl font-black font-mono">R$ {troco.toFixed(2)}</span>
                         </div>
                       )}
                       {parseFloat(valorPago) > 0 && parseFloat(valorPago) < totalGeral && (
-                        <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-center">
-                          <p className="text-red-700 text-xs font-bold">Falta R$ {(totalGeral - parseFloat(valorPago)).toFixed(2)}</p>
+                        <div className="mt-3 bg-red-500/10 border-2 border-red-500/30 rounded-2xl px-4 py-2.5 text-center">
+                          <p className="text-red-700 text-sm font-bold">Falta R$ {(totalGeral - parseFloat(valorPago)).toFixed(2)}</p>
                         </div>
                       )}
                     </div>
@@ -1181,18 +1191,18 @@ export default function PdvBalanca() {
               ) : (
                 <>
                   {/* Banner Modo Dividido */}
-                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🍽️</span>
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">🍽️</span>
                       <div>
-                        <p className="text-xs font-bold text-emerald-900">Divisão de Conta Ativada</p>
-                        <p className="text-[11px] text-emerald-700">Selecione o método de pagamento individual de cada pessoa</p>
+                        <p className="text-sm font-black text-emerald-900">Divisão de Conta Ativada</p>
+                        <p className="text-xs text-emerald-700 font-medium">Selecione o método de pagamento individual de cada pessoa</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setModoDividido(false)}
-                      className="text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 px-2 py-1 rounded transition-colors"
+                      className="text-xs font-bold text-stone-600 hover:text-stone-900 bg-white border border-stone-200 px-3 py-1.5 rounded-lg transition-colors"
                       title="Voltar ao pagamento único da conta toda"
                     >
                       ✕ Cancelar divisão
@@ -1200,13 +1210,13 @@ export default function PdvBalanca() {
                   </div>
 
                   {/* Controle de Pessoas e Reset */}
-                  <div className="flex items-center justify-between gap-2 mb-2.5 bg-stone-50 p-2 rounded-lg border border-stone-200">
-                    <div className="flex items-center gap-1.5 text-xs text-stone-700">
-                      <span className="font-semibold">Dividir em:</span>
+                  <div className="flex items-center justify-between gap-3 mb-3 bg-stone-50 p-3 rounded-2xl border border-stone-200">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-700">
+                      <span className="font-bold">Dividir em:</span>
                       <button
                         type="button"
                         onClick={() => mudarNumPessoas(Math.max(2, numPessoas - 1))}
-                        className="w-6 h-6 rounded-full border border-stone-300 bg-white hover:bg-stone-100 font-bold text-sm leading-none flex items-center justify-center transition-colors"
+                        className="w-7 h-7 rounded-lg border border-stone-300 bg-white hover:bg-stone-100 font-black text-base flex items-center justify-center transition-colors"
                       >−</button>
                       <input
                         type="number"
@@ -1214,19 +1224,19 @@ export default function PdvBalanca() {
                         max="30"
                         value={numPessoas}
                         onChange={e => mudarNumPessoas(Math.max(2, Math.min(30, parseInt(e.target.value) || 2)))}
-                        className="w-10 text-center py-0.5 border border-stone-300 rounded font-bold text-xs bg-white"
+                        className="w-12 text-center py-1 border border-stone-300 rounded-lg font-black text-sm bg-white"
                       />
                       <button
                         type="button"
                         onClick={() => mudarNumPessoas(Math.min(30, numPessoas + 1))}
-                        className="w-6 h-6 rounded-full border border-stone-300 bg-white hover:bg-stone-100 font-bold text-sm leading-none flex items-center justify-center transition-colors"
+                        className="w-7 h-7 rounded-lg border border-stone-300 bg-white hover:bg-stone-100 font-black text-base flex items-center justify-center transition-colors"
                       >+</button>
-                      <span>pessoas</span>
+                      <span className="font-semibold">pessoas</span>
                     </div>
                     <button
                       type="button"
                       onClick={redistribuirIgualmente}
-                      className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold underline underline-offset-2"
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
                       title="Divide o valor igualmente entre todas as pessoas"
                     >
                       R$ {(totalGeral / numPessoas).toFixed(2)} cada (Resetar)
@@ -1234,14 +1244,14 @@ export default function PdvBalanca() {
                   </div>
 
                   {/* Atalho para definir forma de todos */}
-                  <div className="flex items-center gap-1.5 mb-2 text-[11px] text-stone-500 overflow-x-auto pb-1">
-                    <span className="flex-shrink-0">Mudar todos:</span>
+                  <div className="flex items-center gap-2 mb-3 text-xs text-stone-500 overflow-x-auto pb-1">
+                    <span className="flex-shrink-0 font-bold">Mudar todos:</span>
                     {FORMAS.map(f => (
                       <button
                         key={f.id}
                         type="button"
                         onClick={() => aplicarFormaATodos(f.id)}
-                        className="px-2 py-0.5 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium border border-stone-200 flex items-center gap-1 transition-colors flex-shrink-0"
+                        className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold border border-stone-200 flex items-center gap-1.5 transition-colors flex-shrink-0"
                       >
                         <span>{f.icon}</span>
                         <span>{f.label}</span>
@@ -1250,32 +1260,32 @@ export default function PdvBalanca() {
                   </div>
 
                   {/* Lista de Pessoas / Divisões */}
-                  <div className="space-y-2 mb-3 max-h-56 overflow-y-auto pr-1">
+                  <div className="space-y-2.5 mb-3 max-h-56 overflow-y-auto pr-1">
                     {divisoes.map((p, idx) => (
-                      <div key={p.id} className="p-2 rounded-lg border border-stone-200 bg-stone-50/70 hover:bg-stone-50 transition-colors">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-full bg-stone-200 text-[11px] font-bold text-stone-700 flex items-center justify-center">{idx + 1}</span>
+                      <div key={p.id} className="p-3 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-stone-200 text-xs font-black text-stone-700 flex items-center justify-center">{idx + 1}</span>
                             <input
                               value={p.nome}
                               onChange={e => atualizarDivisao(p.id, 'nome', e.target.value)}
-                              className="text-xs font-semibold text-stone-800 bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-stone-300 rounded px-1.5 py-0.5 w-28"
+                              className="text-xs font-bold text-stone-800 bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-stone-300 rounded px-2 py-0.5 w-32"
                             />
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-stone-500">R$</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-stone-500">R$</span>
                             <input
                               type="number"
                               step="0.01"
                               value={p.valor}
                               onChange={e => atualizarDivisao(p.id, 'valor', parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right px-2 py-0.5 border border-stone-300 rounded font-bold text-xs bg-white text-stone-900 font-mono"
+                              className="w-24 text-right px-2 py-1 border border-stone-300 rounded-lg font-black text-sm bg-white text-stone-900 font-mono"
                             />
                           </div>
                         </div>
 
                         {/* 5 Métodos de Pagamento */}
-                        <div className="grid grid-cols-5 gap-1">
+                        <div className="grid grid-cols-5 gap-1.5">
                           {FORMAS.map(f => {
                             const ativo = p.forma === f.id;
                             return (
@@ -1283,8 +1293,8 @@ export default function PdvBalanca() {
                                 key={f.id}
                                 type="button"
                                 onClick={() => atualizarDivisao(p.id, 'forma', f.id)}
-                                className={`py-1 px-1 rounded text-[11px] font-bold flex items-center justify-center gap-1 border transition-all ${
-                                  ativo ? f.cor : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                                className={`py-1.5 px-1 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1 border transition-all ${
+                                  ativo ? f.cor : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                                 }`}
                               >
                                 <span>{f.icon}</span>
@@ -1296,12 +1306,12 @@ export default function PdvBalanca() {
 
                         {/* Botão Ver QR Code PIX */}
                         {p.forma === 'PIX' && (
-                          <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between">
-                            <span className="text-[11px] text-blue-700 font-medium">PIX: <strong>R$ {Number(p.valor || 0).toFixed(2)}</strong></span>
+                          <div className="mt-2 pt-2 border-t border-stone-200 flex items-center justify-between">
+                            <span className="text-xs text-blue-700 font-semibold">PIX: <strong>R$ {Number(p.valor || 0).toFixed(2)}</strong></span>
                             <button
                               type="button"
                               onClick={() => setPixModalInfo({ nome: p.nome, valor: p.valor })}
-                              className="text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-0.5 rounded flex items-center gap-1 shadow-sm transition-colors"
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm transition-colors"
                             >
                               <span>📱</span>
                               <span>Ver QR Code</span>
@@ -1311,19 +1321,19 @@ export default function PdvBalanca() {
 
                         {/* Campo Dinheiro recebido e troco */}
                         {p.forma === 'DINHEIRO' && (
-                          <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between text-xs">
-                            <span className="text-[11px] text-stone-600">Dinheiro entregue:</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="mt-2 pt-2 border-t border-stone-200 flex items-center justify-between text-xs">
+                            <span className="text-stone-600 font-bold">Dinheiro entregue:</span>
+                            <div className="flex items-center gap-2">
                               <input
                                 type="number"
                                 step="0.01"
                                 placeholder={Number(p.valor).toFixed(2)}
                                 value={p.valorPago}
                                 onChange={e => atualizarDivisao(p.id, 'valorPago', e.target.value)}
-                                className="w-20 text-right px-2 py-0.5 border border-stone-300 rounded font-mono text-xs bg-white"
+                                className="w-24 text-right px-2 py-1 border border-stone-300 rounded-lg font-mono font-bold text-sm bg-white"
                               />
                               {parseFloat(p.valorPago) > parseFloat(p.valor) && (
-                                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200 font-mono">
                                   Troco R$ {(parseFloat(p.valorPago) - parseFloat(p.valor)).toFixed(2)}
                                 </span>
                               )}
@@ -1335,18 +1345,18 @@ export default function PdvBalanca() {
                   </div>
 
                   {/* Resumo e Totalizador da Divisão */}
-                  <div className="mb-2 p-2 rounded-lg border text-xs flex flex-col gap-1 bg-stone-50 border-stone-200">
-                    <div className="flex justify-between items-center">
+                  <div className="mb-3 p-3 rounded-2xl border text-xs flex flex-col gap-1.5 bg-stone-50 border-stone-200">
+                    <div className="flex justify-between items-center text-sm font-bold">
                       <span className="text-stone-600">Total Distribuído:</span>
-                      <span className={`font-bold font-mono ${Math.abs(diferencaDivisao) <= 0.01 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      <span className={`font-black font-mono ${Math.abs(diferencaDivisao) <= 0.01 ? 'text-emerald-700' : 'text-amber-700'}`}>
                         R$ {somaDivisoes.toFixed(2)} / R$ {totalGeral.toFixed(2)}
                       </span>
                     </div>
 
                     {/* Breakdown por Forma */}
-                    <div className="pt-1 border-t border-stone-200 flex flex-wrap gap-1">
+                    <div className="pt-1.5 border-t border-stone-200 flex flex-wrap gap-1.5">
                       {Object.entries(resumoFormasDivisao).map(([forma, item]) => item.total > 0 && (
-                        <span key={forma} className="bg-white border border-stone-200 text-stone-700 px-1.5 py-0.5 rounded text-[10px] font-medium flex items-center gap-1">
+                        <span key={forma} className="bg-white border border-stone-200 text-stone-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5">
                           <span>{FORMAS.find(f => f.id === forma)?.icon}</span>
                           <span>{item.qtd}x {forma}:</span>
                           <strong className="font-mono">R$ {item.total.toFixed(2)}</strong>
@@ -1355,7 +1365,7 @@ export default function PdvBalanca() {
                     </div>
 
                     {Math.abs(diferencaDivisao) > 0.01 && (
-                      <div className="mt-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                      <div className="mt-1 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
                         {diferencaDivisao > 0
                           ? `⚠️ Falta distribuir R$ ${diferencaDivisao.toFixed(2)}`
                           : `⚠️ Total excede a venda em R$ ${Math.abs(diferencaDivisao).toFixed(2)}`}
@@ -1366,9 +1376,9 @@ export default function PdvBalanca() {
               )}
             </div>
 
-            {erroVenda && <p className="mb-2 text-red-700 text-xs bg-red-50 border border-red-200 rounded px-3 py-1.5 flex-shrink-0">{erroVenda}</p>}
+            {erroVenda && <p className="mb-3 text-red-700 text-sm font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex-shrink-0">{erroVenda}</p>}
 
-            <div className="flex gap-2.5 pt-2.5 border-t border-stone-200 flex-shrink-0">
+            <div className="flex gap-3 pt-3 border-t border-stone-200 flex-shrink-0">
               <button
                 onClick={finalizarVenda}
                 disabled={
@@ -1376,13 +1386,13 @@ export default function PdvBalanca() {
                   (!modoDividido && formaPagamento === 'DINHEIRO' && parseFloat(valorPago) < totalGeral && valorPago !== '') ||
                   (modoDividido && Math.abs(diferencaDivisao) > 0.05)
                 }
-                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm uppercase tracking-wide rounded transition-all shadow-sm"
+                className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black text-base uppercase tracking-wider rounded-2xl transition-all shadow-md active:scale-98"
               >
-                {salvando ? 'Processando...' : 'Confirmar (F10)'}
+                {salvando ? 'Processando...' : 'Confirmar Venda (F10)'}
               </button>
               <button
                 onClick={() => { setConfirmar(false); setErroVenda(null); }}
-                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm rounded transition-all"
+                className="flex-1 py-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-base rounded-2xl transition-all"
               >
                 Cancelar (Esc)
               </button>
@@ -1394,18 +1404,18 @@ export default function PdvBalanca() {
       {/* MODAL QR CODE PIX INDIVIDUAL PARA QUEM PAGA NO PIX NA CONTA DIVIDIDA */}
       {pixModalInfo && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-stone-200 rounded-xl p-5 max-w-sm w-full shadow-2xl">
-            <div className="flex justify-between items-center mb-3">
+          <div className="bg-white border-2 border-stone-200 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <p className="text-sm font-bold text-stone-900">QR Code PIX - {pixModalInfo.nome}</p>
-                <p className="text-xs text-stone-500">Valor individual: <strong className="text-blue-700 font-mono">R$ {Number(pixModalInfo.valor || 0).toFixed(2)}</strong></p>
+                <p className="text-base font-black text-stone-900">QR Code PIX - {pixModalInfo.nome}</p>
+                <p className="text-xs text-stone-500 font-medium">Valor individual: <strong className="text-blue-700 font-mono text-sm">R$ {Number(pixModalInfo.valor || 0).toFixed(2)}</strong></p>
               </div>
-              <button onClick={() => setPixModalInfo(null)} className="text-stone-400 hover:text-stone-700 text-lg leading-none">✕</button>
+              <button onClick={() => setPixModalInfo(null)} className="text-stone-400 hover:text-stone-700 text-xl font-bold leading-none p-1">✕</button>
             </div>
             <SecaoPixPdv total={Number(pixModalInfo.valor || 0)} cliente={cliente} />
             <button
               onClick={() => setPixModalInfo(null)}
-              className="w-full mt-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded transition-colors"
+              className="w-full mt-3 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-black uppercase tracking-wider rounded-xl transition-colors"
             >
               Fechar QR Code
             </button>
@@ -1414,38 +1424,40 @@ export default function PdvBalanca() {
       )}
 
       {/* TOPO — STATUS SCANNER E SELETOR DE MODO */}
-      <header className="bg-white border-b border-stone-200 px-5 py-2.5 flex items-center justify-between flex-shrink-0 gap-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">📷</span>
+      <header className="bg-white border-b border-stone-200 px-6 py-3 flex items-center justify-between flex-shrink-0 gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl shadow-2xs">
+            📷
+          </div>
           <div>
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-stone-900">Frente de Caixa (PDV)</p>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${modoLayout === 'limpo' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-base sm:text-lg font-black text-stone-900 tracking-tight">Frente de Caixa (PDV)</h1>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-wide ${modoLayout === 'limpo' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-blue-100 text-blue-900 border border-blue-300'}`}>
                 {modoLayout === 'limpo' ? '⚡ Modo Limpo' : '📑 Modo Clássico'}
               </span>
             </div>
-            <p className="text-[11px] text-stone-500">Aponte o scanner para o produto — ele será adicionado automaticamente</p>
+            <p className="text-xs text-stone-500 font-medium">Aponte o scanner para o produto — ele será adicionado automaticamente</p>
           </div>
         </div>
 
         {/* Flash feedback do scan */}
         {flashCodigo && (
-          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-1.5 animate-pulse">
-            <span className="text-emerald-700 text-base">✓</span>
-            <span className="text-emerald-700 text-xs font-bold font-mono">{flashCodigo}</span>
+          <div className="flex items-center gap-2 bg-emerald-500/15 border-2 border-emerald-500/40 rounded-xl px-5 py-2 animate-pulse">
+            <span className="text-emerald-700 text-lg font-black">✓</span>
+            <span className="text-emerald-800 text-sm font-black font-mono">{flashCodigo}</span>
           </div>
         )}
 
         {/* SELETOR DE MODO DO PDV (ALTERNÂNCIA FÁCIL) */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-inner">
+        <div className="flex items-center gap-5">
+          <div className="flex items-center bg-stone-100 p-1.5 rounded-2xl border border-stone-200 shadow-inner">
             <button
               type="button"
               onClick={() => alternarModoLayout('limpo')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
                 modoLayout === 'limpo'
-                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
-                  : 'text-stone-500 hover:text-stone-800'
+                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200/80'
+                  : 'text-stone-500 hover:text-stone-900'
               }`}
               title="Modo Limpo: Tela ampla sem catálogo estático, com barra de busca e leitor na parte de baixo"
             >
@@ -1455,10 +1467,10 @@ export default function PdvBalanca() {
             <button
               type="button"
               onClick={() => alternarModoLayout('classico')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
                 modoLayout === 'classico'
-                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
-                  : 'text-stone-500 hover:text-stone-800'
+                  ? 'bg-white text-stone-900 shadow-sm border border-stone-200/80'
+                  : 'text-stone-500 hover:text-stone-900'
               }`}
               title="Modo Clássico: Tela com catálogo completo de produtos na coluna esquerda"
             >
@@ -1467,9 +1479,9 @@ export default function PdvBalanca() {
             </button>
           </div>
 
-          <div className="text-right min-w-24 pl-3 border-l border-stone-200">
-            <p className="text-[11px] text-stone-400 font-medium">{itensCarrinho.length} item(ns)</p>
-            <p className="text-xl font-black text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</p>
+          <div className="text-right min-w-28 pl-4 border-l border-stone-200">
+            <p className="text-xs text-stone-500 font-bold">{itensCarrinho.length} item(ns)</p>
+            <p className="text-2xl sm:text-3xl font-black text-stone-900 font-mono tracking-tight leading-none mt-0.5">R$ {totalGeral.toFixed(2)}</p>
           </div>
         </div>
       </header>
@@ -1480,19 +1492,19 @@ export default function PdvBalanca() {
 
           {/* LISTA MANUAL DE PRODUTOS */}
           <section className="w-2/5 flex flex-col border-r border-stone-200" style={{minWidth:0}}>
-            <div className="px-4 py-2 border-b border-stone-200 flex-shrink-0 bg-page flex items-center justify-between">
-              <p className="text-xs text-stone-500 font-medium">Ou selecione manualmente:</p>
+            <div className="px-5 py-3 border-b border-stone-200 flex-shrink-0 bg-stone-50/80 flex items-center justify-between">
+              <p className="text-xs sm:text-sm text-stone-600 font-bold uppercase tracking-wider">Catálogo de Produtos</p>
               <button
                 onClick={() => setItemDiversosAberto(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-2.5 py-1 rounded-md transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-3.5 py-1.5 rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
                 title="Adicionar item avulso com valor em aberto (Atalho: F9 ou digite 999)">
                 <span>🏷️</span>
                 <span>+ Diversos (999) [F9]</span>
               </button>
             </div>
-            <div className="px-4 py-3 border-b border-stone-200 flex-shrink-0">
+            <div className="px-5 py-3.5 border-b border-stone-200 flex-shrink-0 bg-white">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">🔍</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-base">🔍</span>
                 <input ref={buscaRef} value={busca} onChange={e => setBusca(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && busca.trim() === '999') {
@@ -1500,23 +1512,23 @@ export default function PdvBalanca() {
                       setItemDiversosAberto(true);
                     }
                   }}
-                  placeholder="Buscar produto ou digite '999' para diversos..."
-                  className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-9 pr-4 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-brand-500 transition-colors"
+                  placeholder="Buscar produto por nome ou código..."
+                  className="w-full bg-stone-100 hover:bg-white focus:bg-white border-2 border-stone-200 focus:border-brand-500 rounded-xl pl-10 pr-9 py-3 text-stone-900 text-sm sm:text-base font-bold focus:outline-none transition-colors"
                 />
-                {busca && <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700 text-lg">×</button>}
+                {busca && <button onClick={() => setBusca('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xl font-bold">×</button>}
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
               {produtosFiltrados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-2">
-                  <span className="text-4xl">🔍</span>
-                  <p className="text-xs font-medium">Nenhum produto encontrado</p>
+                <div className="flex flex-col items-center justify-center h-full text-stone-400 gap-2 p-8">
+                  <span className="text-5xl">🔍</span>
+                  <p className="text-sm font-bold text-stone-500">Nenhum produto encontrado</p>
                 </div>
               ) : Object.entries(porCategoria).map(([cat, prods]) => (
                 <div key={cat}>
-                  <div className="px-4 py-2 bg-white border-b border-stone-200/50 sticky top-0">
-                    <p className="text-xs text-stone-500 font-medium font-bold">{cat}</p>
+                  <div className="px-5 py-2.5 bg-stone-100/90 border-y border-stone-200 sticky top-0 z-10">
+                    <p className="text-xs font-black uppercase tracking-wider text-stone-600">{cat}</p>
                   </div>
                   {prods.map(p => {
                     const isUN = p.unidade === 'UN';
@@ -1524,41 +1536,41 @@ export default function PdvBalanca() {
                     const temPromo = p.precoPromocao && p.precoPromocao > 0;
                     const precoAtivo = temPromo ? p.precoPromocao : p.precoVenda;
                     return (
-                      <div key={p.id} className="flex items-center justify-between px-4 py-3 border-b border-stone-200/40 hover:bg-stone-100/30 transition-colors">
-                        <div className="flex-1 min-w-0">
+                      <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-stone-200 hover:bg-stone-50 transition-colors">
+                        <div className="flex-1 min-w-0 pr-3">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold text-stone-900 truncate">{p.nome}</p>
-                            {p.codigoBarras && <span className="text-xs text-stone-500 font-mono flex-shrink-0">{p.codigoBarras}</span>}
+                            <p className="text-base font-black text-stone-900 truncate">{p.nome}</p>
+                            {p.codigoBarras && <span className="text-xs text-stone-500 font-mono font-bold flex-shrink-0 bg-stone-100 px-1.5 py-0.5 rounded">{p.codigoBarras}</span>}
                             {temPromo && (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30">🔥 Promo</span>
+                              <span className="text-xs bg-amber-500/15 text-amber-800 font-extrabold px-2 py-0.5 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
                             )}
                           </div>
                           {temPromo ? (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <p className="text-xs text-amber-700 font-bold font-mono">
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-sm text-amber-700 font-black font-mono">
                                 R$ {p.precoPromocao.toFixed(2)}/{isUN ? 'un' : 'kg'}
                               </p>
-                              <p className="text-[11px] text-stone-400 line-through font-mono">
+                              <p className="text-xs text-stone-400 line-through font-mono">
                                 R$ {p.precoVenda.toFixed(2)}
                               </p>
                             </div>
                           ) : (
-                            <p className="text-xs text-emerald-700 font-bold mt-0.5">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
+                            <p className="text-sm text-emerald-700 font-bold font-mono mt-1">R$ {p.precoVenda.toFixed(2)}/{isUN ? 'un' : 'kg'}</p>
                           )}
                         </div>
                         {isUN ? (
-                          <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                            <div className="flex items-center bg-stone-100 border border-stone-300 rounded-lg overflow-hidden">
-                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: Math.max(1, (q[p.id]||1) - 1) }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">−</button>
-                              <span className="px-2 text-stone-900 font-bold text-sm min-w-[1.5rem] text-center">{qtd}</span>
-                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="px-2.5 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-colors font-bold">+</button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center bg-stone-100 border-2 border-stone-200 rounded-xl overflow-hidden">
+                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: Math.max(1, (q[p.id]||1) - 1) }))} className="w-8 h-8 flex items-center justify-center text-stone-700 hover:text-stone-900 hover:bg-stone-200 transition-colors font-black text-base">−</button>
+                              <span className="px-2 text-stone-900 font-black font-mono text-sm sm:text-base min-w-[1.75rem] text-center">{qtd}</span>
+                              <button onClick={() => setQtds(q => ({ ...q, [p.id]: (q[p.id]||1) + 1 }))} className="w-8 h-8 flex items-center justify-center text-stone-700 hover:text-stone-900 hover:bg-stone-200 transition-colors font-black text-base">+</button>
                             </div>
-                            <button onClick={() => adicionarUN(p)} className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
+                            <button onClick={() => adicionarUN(p)} className="bg-brand-600 hover:bg-brand-700 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow-sm">
                               + {(precoAtivo * qtd).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}
                             </button>
                           </div>
                         ) : (
-                          <button onClick={() => setProdutoKGPendente(p)} className="ml-3 flex-shrink-0 bg-stone-100 border border-stone-300 hover:border-stone-400 text-stone-700 font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95">
+                          <button onClick={() => setProdutoKGPendente(p)} className="flex-shrink-0 bg-stone-100 hover:bg-stone-200 border-2 border-stone-300 text-stone-800 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all active:scale-95">
                             ⚖️ Digitar Peso
                           </button>
                         )}
@@ -1572,71 +1584,71 @@ export default function PdvBalanca() {
 
           {/* CUPOM */}
           <section className="w-3/5 flex flex-col bg-white">
-            <div className="px-5 pt-4 pb-3 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between bg-stone-50/50">
               <div>
-                <p className="text-sm text-stone-700 font-bold">🛒 Cupom</p>
-                <p className="text-stone-500 text-xs mt-0.5">{itensCarrinho.length} item(s)</p>
+                <p className="text-base text-stone-900 font-black flex items-center gap-2"><span>🛒</span> Cupom Fiscal / Itens</p>
+                <p className="text-stone-500 text-xs font-semibold mt-0.5">{itensCarrinho.length} item(ns) adicionados</p>
               </div>
-              <span className="text-2xl font-bold text-stone-900">R$ {totalGeral.toFixed(2)}</span>
+              <span className="text-3xl font-black text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
               {itensCarrinho.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-stone-600 gap-3 py-12">
-                  <span className="text-5xl">📷</span>
-                  <p className="text-xs font-medium text-center leading-relaxed">Aponte o leitor<br/>para o produto</p>
+                <div className="flex flex-col items-center justify-center h-full text-stone-400 gap-3 py-16">
+                  <span className="text-6xl">📷</span>
+                  <p className="text-sm font-bold text-center text-stone-500 leading-relaxed">Aponte o leitor de código de barras<br/>ou selecione ao lado</p>
                 </div>
               )}
               {itensCarrinho.map((item, idx) => (
-                <div key={item.uid} className="bg-white border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between group hover:border-brand-400 transition-colors">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className="text-stone-400 text-xs font-bold w-5 text-center flex-shrink-0">{idx+1}</span>
+                <div key={item.uid} className="bg-white border-2 border-stone-200 hover:border-brand-500 rounded-2xl p-4 flex items-center justify-between group transition-all shadow-2xs">
+                  <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                    <span className="text-stone-400 text-sm font-black w-6 text-center flex-shrink-0">{idx+1}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-base font-bold text-stone-900 truncate leading-tight">{item.nome}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-base sm:text-lg font-black text-stone-900 truncate leading-snug">{item.nome}</p>
                         {item.emPromocao && (
-                          <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
+                          <span className="text-xs bg-amber-500/15 text-amber-800 font-extrabold px-2 py-0.5 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
                         )}
                       </div>
-                      <p className="text-sm text-stone-500 mt-0.5">
-                        {item.unidade === 'UN' ? `${item.peso} un` : `${item.peso} kg`}
-                        <span className="mx-1 text-stone-300">×</span>
-                        R$ {parseFloat(item.precoKg).toFixed(2)}/{item.unidade === 'UN' ? 'un' : 'kg'}
+                      <p className="text-sm font-semibold text-stone-500 mt-0.5">
+                        <span className="font-bold text-stone-700">{item.unidade === 'UN' ? `${item.peso} un` : `${item.peso} kg`}</span>
+                        <span className="mx-2 text-stone-300 font-normal">×</span>
+                        <span className="font-mono">R$ {parseFloat(item.precoKg).toFixed(2)}/{item.unidade === 'UN' ? 'un' : 'kg'}</span>
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                    <span className="text-emerald-700 font-bold text-lg font-mono">R$ {item.total.toFixed(2)}</span>
-                    <button onClick={() => removerItem(item.uid)} className="text-stone-300 hover:text-red-600 transition-colors text-2xl leading-none opacity-0 group-hover:opacity-100 w-6 text-center font-light">×</button>
+                  <div className="flex items-center gap-4 ml-4 flex-shrink-0">
+                    <span className="text-emerald-700 font-black text-xl font-mono">R$ {item.total.toFixed(2)}</span>
+                    <button onClick={() => removerItem(item.uid)} className="text-stone-300 hover:text-red-600 transition-colors text-2xl leading-none opacity-40 group-hover:opacity-100 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-50 font-bold">×</button>
                   </div>
                 </div>
               ))}
             </div>
 
             {erroVenda && !confirmar && (
-              <div className="mx-4 mb-2 text-xs rounded px-3 py-2 border text-amber-700 bg-amber-50 border-amber-900">{erroVenda}</div>
+              <div className="mx-6 mb-3 text-xs sm:text-sm font-bold rounded-xl px-4 py-3 border text-amber-800 bg-amber-50 border-amber-300">{erroVenda}</div>
             )}
 
-            <div className="border-t border-stone-200 p-4 space-y-3 flex-shrink-0">
-              <div className="flex justify-between items-center">
-                <span className="text-stone-600 uppercase text-xs tracking-widest font-bold">Total</span>
-                <span className="text-3xl font-bold text-stone-900 font-mono">R$ {totalGeral.toFixed(2)}</span>
+            <div className="border-t border-stone-200 p-6 space-y-4 flex-shrink-0 bg-stone-50/60">
+              <div className="flex justify-between items-baseline">
+                <span className="text-stone-500 uppercase text-xs sm:text-sm tracking-widest font-black">TOTAL A PAGAR</span>
+                <span className="text-4xl sm:text-5xl font-black text-stone-900 font-mono tracking-tight">R$ {totalGeral.toFixed(2)}</span>
               </div>
               <button onClick={() => setConfirmar(true)} disabled={itensCarrinho.length === 0 || salvando}
-                className={`w-full py-4 rounded-lg font-bold text-sm uppercase tracking-wide transition-all duration-200 active:scale-95
+                className={`w-full py-5 rounded-2xl font-black text-base sm:text-lg uppercase tracking-wider transition-all duration-200 active:scale-98 shadow-md
                   ${vendaFinalizada ? 'bg-emerald-600 text-white'
-                  : itensCarrinho.length === 0 ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-soft'}`}>
-                {salvando ? 'Registrando...' : vendaFinalizada ? '✓ Venda Registrada!' : 'Finalizar Venda (F10)'}
+                  : itensCarrinho.length === 0 ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-lg'}`}>
+                {salvando ? 'Processando...' : vendaFinalizada ? '✓ Venda Concluída!' : 'FINALIZAR VENDA (F10)'}
               </button>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button onClick={() => { setItensCarrinho([]); setErroVenda(null); }} disabled={itensCarrinho.length === 0}
-                  className="flex-1 py-2 rounded text-xs text-stone-500 hover:text-stone-600 transition-colors disabled:opacity-0">
+                  className="flex-1 py-3 rounded-xl text-xs sm:text-sm font-black text-stone-500 hover:text-stone-800 hover:bg-stone-200 bg-stone-100 transition-colors disabled:opacity-0">
                   Limpar carrinho
                 </button>
                 {ultimaVendaId && (
                   <button onClick={cancelarUltimaVenda} disabled={cancelando}
-                    className="flex-1 py-2 rounded text-xs text-red-600 hover:text-red-700 border border-red-200 transition-colors">
-                    {cancelando ? 'Cancelando...' : '↩ Cancelar ultima'}
+                    className="flex-1 py-3 rounded-xl text-xs sm:text-sm font-black text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 transition-colors">
+                    {cancelando ? 'Cancelando...' : '↩ Cancelar última'}
                   </button>
                 )}
               </div>
@@ -1653,25 +1665,25 @@ export default function PdvBalanca() {
             <section className="flex-1 flex flex-col bg-white border-r border-stone-200 overflow-hidden">
               {/* Banner do Último Item Registrado */}
               {ultimoItemAdicionado && (
-                <div className="bg-emerald-50/90 border-b border-emerald-200 px-6 py-2.5 flex items-center justify-between flex-shrink-0 animate-in fade-in duration-200">
-                  <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <div className="bg-emerald-50 border-b-2 border-emerald-200 px-6 py-3.5 flex items-center justify-between flex-shrink-0 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-3.5">
+                    <span className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-sm flex-shrink-0">
                       ✓
                     </span>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                    <div className="min-w-0">
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-800 block">
                         Último produto registrado
                       </span>
-                      <p className="text-sm font-extrabold text-stone-900 truncate max-w-lg">
+                      <p className="text-base sm:text-lg font-black text-stone-900 truncate max-w-xl">
                         {ultimoItemAdicionado.nome}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-stone-500 font-medium mr-2">
+                  <div className="text-right flex-shrink-0 pl-4">
+                    <span className="text-sm text-stone-500 font-semibold mr-3">
                       {ultimoItemAdicionado.peso} {ultimoItemAdicionado.unidade.toLowerCase()} × R$ {ultimoItemAdicionado.precoKg.toFixed(2)}
                     </span>
-                    <span className="text-base font-black font-mono text-emerald-800">
+                    <span className="text-xl sm:text-2xl font-black font-mono text-emerald-800">
                       R$ {ultimoItemAdicionado.total.toFixed(2)}
                     </span>
                   </div>
@@ -1682,32 +1694,32 @@ export default function PdvBalanca() {
               <div className="flex-1 overflow-y-auto">
                 {itensCarrinho.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center select-none">
-                    <div className="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center mb-4 text-3xl shadow-inner">
+                    <div className="w-24 h-24 rounded-3xl bg-white border-2 border-stone-200 flex items-center justify-center mb-5 text-4xl shadow-md">
                       🛒
                     </div>
-                    <h3 className="text-base font-bold text-stone-800 mb-1">Caixa Aberto · Aguardando Leitura</h3>
-                    <p className="text-xs text-stone-500 max-w-sm mb-6 leading-relaxed">
-                      Aponte o leitor de código de barras ou utilize a <strong>barra de pesquisa na parte inferior</strong> da tela para registrar produtos.
+                    <h3 className="text-xl font-black text-stone-900 mb-1.5">Caixa Aberto · Pronto para Vender</h3>
+                    <p className="text-sm text-stone-500 max-w-md mb-8 leading-relaxed font-medium">
+                      Aponte o leitor de código de barras ou utilize a <strong>barra de busca na parte inferior</strong> da tela para registrar produtos rapidamente.
                     </p>
-                    <div className="flex flex-wrap gap-2 justify-center max-w-md">
-                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
-                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">F9</span>
+                    <div className="flex flex-wrap gap-3 justify-center max-w-lg">
+                      <div className="px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs text-xs text-stone-700 flex items-center gap-2 font-bold">
+                        <span className="bg-stone-200 text-stone-900 px-2 py-0.5 rounded-md font-mono font-black text-xs">F9</span>
                         <span>Item Avulso (999)</span>
                       </div>
-                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
-                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">F10</span>
+                      <div className="px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs text-xs text-stone-700 flex items-center gap-2 font-bold">
+                        <span className="bg-stone-200 text-stone-900 px-2 py-0.5 rounded-md font-mono font-black text-xs">F10</span>
                         <span>Finalizar Venda</span>
                       </div>
-                      <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
-                        <span className="bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded font-mono font-bold">Qtd*Produto</span>
+                      <div className="px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs text-xs text-stone-700 flex items-center gap-2 font-bold">
+                        <span className="bg-stone-200 text-stone-900 px-2 py-0.5 rounded-md font-mono font-black text-xs">Qtd*Produto</span>
                         <span>Ex: 2*coca</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 space-y-2">
+                  <div className="p-5 space-y-2.5">
                     {/* Cabeçalho da Tabela */}
-                    <div className="grid grid-cols-12 text-xs font-bold text-stone-400 uppercase tracking-wider pb-2 px-3 border-b border-stone-100">
+                    <div className="grid grid-cols-12 text-xs sm:text-sm font-black text-stone-400 uppercase tracking-wider pb-3 px-4 border-b border-stone-200">
                       <div className="col-span-1 text-center">#</div>
                       <div className="col-span-5">Produto / Descrição</div>
                       <div className="col-span-2 text-right">Preço Unit.</div>
@@ -1719,48 +1731,48 @@ export default function PdvBalanca() {
                     {itensCarrinho.map((item, idx) => (
                       <div
                         key={item.uid}
-                        className="grid grid-cols-12 items-center bg-white border border-stone-200 hover:border-brand-400 rounded-xl p-3 shadow-2xs transition-all group"
+                        className="grid grid-cols-12 items-center bg-white border-2 border-stone-200 hover:border-brand-500 rounded-2xl p-4 shadow-2xs transition-all group"
                       >
                         {/* # */}
-                        <div className="col-span-1 text-center font-bold text-xs text-stone-400">
+                        <div className="col-span-1 text-center font-black text-sm text-stone-400">
                           {idx + 1}
                         </div>
 
                         {/* Nome */}
-                        <div className="col-span-5 pr-2">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-stone-900 text-sm truncate">{item.nome}</p>
+                        <div className="col-span-5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <p className="font-black text-stone-900 text-base sm:text-lg truncate">{item.nome}</p>
                             {item.emPromocao && (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
+                              <span className="text-xs bg-amber-500/15 text-amber-800 font-extrabold px-2 py-0.5 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
                             )}
                           </div>
-                          <span className="text-[11px] text-stone-500 font-mono">
+                          <span className="text-xs text-stone-500 font-medium">
                             {item.unidade === 'UN' ? 'Unidade' : 'Quilo (KG)'}
                           </span>
                         </div>
 
                         {/* Preço Unitário */}
-                        <div className="col-span-2 text-right text-xs font-semibold text-stone-600 font-mono">
+                        <div className="col-span-2 text-right text-sm sm:text-base font-bold text-stone-700 font-mono">
                           R$ {parseFloat(item.precoKg).toFixed(2)}
                         </div>
 
                         {/* Qtd / Peso com botões de ajuste rápido */}
-                        <div className="col-span-2 flex items-center justify-center gap-1">
+                        <div className="col-span-2 flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => alterarQuantidade(item.uid, -1)}
-                            className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-base flex items-center justify-center transition-colors active:scale-95"
                             title="Diminuir quantidade"
                           >
                             −
                           </button>
-                          <span className="font-bold text-xs font-mono text-stone-800 min-w-[3.2rem] text-center">
+                          <span className="font-black text-sm sm:text-base font-mono text-stone-900 min-w-[3.5rem] text-center">
                             {item.peso} {item.unidade.toLowerCase()}
                           </span>
                           <button
                             type="button"
                             onClick={() => alterarQuantidade(item.uid, +1)}
-                            className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-base flex items-center justify-center transition-colors active:scale-95"
                             title="Aumentar quantidade"
                           >
                             +
@@ -1768,14 +1780,14 @@ export default function PdvBalanca() {
                         </div>
 
                         {/* Subtotal e Excluir */}
-                        <div className="col-span-2 flex items-center justify-end gap-2">
-                          <span className="font-black text-sm font-mono text-emerald-700">
+                        <div className="col-span-2 flex items-center justify-end gap-3">
+                          <span className="font-black text-base sm:text-xl font-mono text-emerald-700">
                             R$ {item.total.toFixed(2)}
                           </span>
                           <button
                             type="button"
                             onClick={() => removerItem(item.uid)}
-                            className="w-6 h-6 rounded-lg text-stone-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-sm transition-all opacity-40 group-hover:opacity-100"
+                            className="w-8 h-8 rounded-xl text-stone-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-lg font-bold transition-all opacity-40 group-hover:opacity-100"
                             title="Remover item da venda"
                           >
                             ✕
@@ -1789,56 +1801,56 @@ export default function PdvBalanca() {
             </section>
 
             {/* PAINEL LATERAL DIREITO: TOTAIS E BOTÕES DE FINALIZAÇÃO */}
-            <aside className="w-80 md:w-96 flex flex-col bg-stone-50 p-5 flex-shrink-0 border-l border-stone-200 justify-between">
-              <div className="space-y-4">
+            <aside className="w-88 md:w-96 lg:w-[420px] flex flex-col bg-stone-50 p-6 flex-shrink-0 border-l border-stone-200 justify-between">
+              <div className="space-y-5">
                 {/* Total da Venda em Destaque */}
-                <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-stone-400 block mb-1">
-                    Total a Pagar
+                <div className="bg-white rounded-3xl p-6 border-2 border-stone-200 shadow-sm">
+                  <span className="text-xs font-black uppercase tracking-widest text-stone-400 block mb-1">
+                    TOTAL A PAGAR
                   </span>
-                  <div className="text-4xl font-black font-mono text-stone-900 tracking-tight flex items-baseline gap-1">
-                    <span className="text-2xl text-stone-400 font-semibold">R$</span>
+                  <div className="text-5xl lg:text-6xl font-black font-mono text-stone-900 tracking-tight flex items-baseline gap-1.5 my-2">
+                    <span className="text-3xl lg:text-4xl text-stone-400 font-bold">R$</span>
                     <span>{totalGeral.toFixed(2)}</span>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
+                  <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between text-xs sm:text-sm text-stone-500 font-medium">
                     <span>Total de itens:</span>
-                    <strong className="font-mono text-stone-800 text-sm font-bold">
+                    <strong className="font-mono text-stone-900 text-base font-black">
                       {itensCarrinho.length} item(ns)
                     </strong>
                   </div>
                 </div>
 
                 {erroVenda && !confirmar && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3">
+                  <div className="bg-red-50 border-2 border-red-200 text-red-700 text-sm font-bold rounded-2xl p-4">
                     {erroVenda}
                   </div>
                 )}
               </div>
 
               {/* Ações Rápidas */}
-              <div className="space-y-3 pt-4">
+              <div className="space-y-3.5 pt-5">
                 <button
                   type="button"
                   onClick={() => setConfirmar(true)}
                   disabled={itensCarrinho.length === 0 || salvando}
-                  className={`w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 ${
+                  className={`w-full py-5 rounded-2xl font-black text-base sm:text-lg uppercase tracking-wide transition-all shadow-md active:scale-98 flex items-center justify-center gap-2.5 ${
                     itensCarrinho.length === 0
                       ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-lg'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-xl'
                   }`}
                 >
                   <span>{salvando ? 'Processando...' : vendaFinalizada ? '✓ Venda Concluída!' : 'FINALIZAR VENDA (F10)'}</span>
-                  <span>→</span>
+                  <span className="text-xl">→</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setItemDiversosAberto(true)}
-                    className="py-2.5 px-3 bg-white hover:bg-amber-50 text-amber-700 border border-stone-200 hover:border-amber-300 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5"
+                    className="py-3.5 px-3 bg-white hover:bg-amber-50 text-amber-700 border-2 border-stone-200 hover:border-amber-400 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-2xs flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <span>🏷️</span>
+                    <span className="text-base">🏷️</span>
                     <span>+ Diversos (F9)</span>
                   </button>
 
@@ -1846,9 +1858,9 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={() => { setItensCarrinho([]); setErroVenda(null); }}
                     disabled={itensCarrinho.length === 0}
-                    className="py-2.5 px-3 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 border border-stone-200 hover:border-red-200 rounded-xl text-xs font-bold transition-all shadow-2xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                    className="py-3.5 px-3 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 border-2 border-stone-200 hover:border-red-300 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-2xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <span>🧹</span>
+                    <span className="text-base">🧹</span>
                     <span>Limpar Venda</span>
                   </button>
                 </div>
@@ -1858,7 +1870,7 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={cancelarUltimaVenda}
                     disabled={cancelando}
-                    className="w-full py-2 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all"
+                    className="w-full py-3 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-2xl text-xs sm:text-sm font-black transition-all"
                   >
                     {cancelando ? 'Cancelando...' : '↩ Cancelar Última Venda'}
                   </button>
@@ -1868,23 +1880,23 @@ export default function PdvBalanca() {
           </div>
 
           {/* BARRA DE PESQUISA E CÓDIGO DE BARRAS INFERIOR (FIXADA NO RODAPÉ) */}
-          <div className="relative bg-white border-t border-stone-200 p-3 shadow-lg z-20">
+          <div className="relative bg-white border-t border-stone-200 p-4 shadow-xl z-20">
             {/* POPUP DE SUGESTÕES FLUTUANTE ACIMA DA BARRA */}
             {sugestoesAbertas && buscaBaixo.trim().length > 0 && (
               <div
                 ref={sugestoesRef}
-                className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl border border-stone-300 shadow-2xl overflow-hidden max-h-80 flex flex-col z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                className="absolute bottom-full left-4 right-4 mb-3 bg-white rounded-3xl border-2 border-stone-300 shadow-2xl overflow-hidden max-h-96 flex flex-col z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
               >
-                <div className="bg-stone-100 px-4 py-2 border-b border-stone-200 flex items-center justify-between text-xs font-bold text-stone-600">
+                <div className="bg-stone-100 px-5 py-3 border-b border-stone-200 flex items-center justify-between text-xs sm:text-sm font-black text-stone-700">
                   <span>Produtos Encontrados ({produtosSugeridos.length})</span>
-                  <span className="text-[11px] font-normal text-stone-400">Navegue com ↑ / ↓ e confirme com Enter</span>
+                  <span className="text-xs font-semibold text-stone-400">Navegue com ↑ / ↓ e confirme com Enter</span>
                 </div>
 
-                <div className="overflow-y-auto flex-1 p-1">
+                <div className="overflow-y-auto flex-1 p-2">
                   {produtosSugeridos.length === 0 ? (
-                    <div className="p-4 text-center text-stone-400 text-xs">
+                    <div className="p-6 text-center text-stone-400 text-sm">
                       Nenhum produto cadastrado com esse nome ou código.
-                      <p className="text-[11px] text-stone-400 mt-1">Pressione Enter para buscar pelo código de barras ou F9 para item diverso.</p>
+                      <p className="text-xs text-stone-400 mt-1">Pressione Enter para buscar pelo código de barras ou F9 para item diverso.</p>
                     </div>
                   ) : (
                     produtosSugeridos.map((prod, index) => {
@@ -1894,36 +1906,36 @@ export default function PdvBalanca() {
                           key={prod.id}
                           onClick={() => selecionarSugestao(prod)}
                           onMouseEnter={() => setIndiceSugerido(index)}
-                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
-                            selecionado ? 'bg-amber-500/15 border border-amber-500/40 text-stone-900' : 'hover:bg-stone-50 border border-transparent'
+                          className={`flex items-center justify-between px-4 py-3 rounded-2xl cursor-pointer transition-colors ${
+                            selecionado ? 'bg-amber-500/15 border-2 border-amber-500/50 text-stone-900' : 'hover:bg-stone-50 border-2 border-transparent'
                           }`}
                         >
-                          <div className="flex-1 min-w-0 pr-3">
-                            <p className="text-sm font-bold text-stone-900 truncate">{prod.nome}</p>
-                            <p className="text-xs text-stone-500">
+                          <div className="flex-1 min-w-0 pr-4">
+                            <p className="text-base sm:text-lg font-black text-stone-900 truncate">{prod.nome}</p>
+                            <p className="text-xs sm:text-sm text-stone-500 font-medium">
                               {prod.categoria || 'Geral'} {prod.codigoBarras ? `· Cód: ${prod.codigoBarras}` : ''}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             {prod.precoPromocao && prod.precoPromocao > 0 ? (
                               <div>
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <span className="text-[9px] bg-amber-500/15 text-amber-800 font-bold px-1 py-0.2 rounded">🔥 Promo</span>
-                                  <p className="text-sm font-bold text-amber-700 font-mono">
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="text-[10px] bg-amber-500/15 text-amber-800 font-black px-1.5 py-0.5 rounded border border-amber-500/30">🔥 Promo</span>
+                                  <p className="text-base sm:text-lg font-black text-amber-700 font-mono">
                                     R$ {prod.precoPromocao.toFixed(2)}
                                   </p>
                                 </div>
-                                <span className="text-[11px] text-stone-400 line-through font-mono">
+                                <span className="text-xs text-stone-400 line-through font-mono">
                                   R$ {prod.precoVenda.toFixed(2)}/{prod.unidade === 'UN' ? 'un' : 'kg'}
                                 </span>
                               </div>
                             ) : (
-                              <p className="text-sm font-bold text-emerald-700 font-mono">
+                              <p className="text-base sm:text-lg font-black text-emerald-700 font-mono">
                                 R$ {prod.precoVenda.toFixed(2)}
-                                <span className="text-xs text-stone-500 font-normal">/{prod.unidade === 'UN' ? 'un' : 'kg'}</span>
+                                <span className="text-xs text-stone-500 font-semibold font-sans">/{prod.unidade === 'UN' ? 'un' : 'kg'}</span>
                               </p>
                             )}
-                            <span className="text-[10px] text-stone-400 font-mono block">
+                            <span className="text-xs text-stone-400 font-medium font-sans block mt-0.5">
                               {prod.unidade === 'UN' ? 'Enter para adicionar' : 'Enter para digitar peso'}
                             </span>
                           </div>
@@ -1933,18 +1945,18 @@ export default function PdvBalanca() {
                   )}
                 </div>
 
-                <div className="bg-stone-50 px-3 py-1.5 border-t border-stone-200 text-[11px] text-stone-500 flex justify-between">
+                <div className="bg-stone-50 px-5 py-2.5 border-t border-stone-200 text-xs text-stone-500 flex justify-between font-medium">
                   <span>Pressione <strong>ESC</strong> para fechar a busca</span>
                   <span><strong>999</strong> = Item avulso</span>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="relative flex-1">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none text-stone-400">
-                  <span className="text-lg">📷</span>
-                  <span className="text-xs border-r border-stone-300 pr-2">Leitor / Busca</span>
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2.5 pointer-events-none text-stone-400">
+                  <span className="text-2xl">📷</span>
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider border-r border-stone-300 pr-3 text-stone-500">Leitor / Busca</span>
                 </div>
                 <input
                   ref={inputBaixoRef}
@@ -1953,13 +1965,13 @@ export default function PdvBalanca() {
                   onChange={handleBuscaBaixoChange}
                   onKeyDown={handleBuscaBaixoKeyDown}
                   placeholder="Aponte o leitor de código de barras ou digite o nome do produto... (Pressione Enter)"
-                  className="w-full bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-300 focus:border-brand-500 rounded-xl pl-32 pr-10 py-3 text-stone-900 text-sm font-semibold focus:outline-none shadow-inner transition-all font-sans"
+                  className="w-full bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-300 focus:border-brand-500 rounded-2xl pl-40 pr-12 py-4 text-stone-900 text-base sm:text-lg font-bold focus:outline-none shadow-inner transition-all font-sans"
                 />
                 {buscaBaixo && (
                   <button
                     type="button"
                     onClick={() => { setBuscaBaixo(''); setSugestoesAbertas(false); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-lg w-6 h-6 flex items-center justify-center rounded-full hover:bg-stone-200 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-200 transition-colors"
                   >
                     ×
                   </button>
@@ -1969,10 +1981,10 @@ export default function PdvBalanca() {
               <button
                 type="button"
                 onClick={() => setItemDiversosAberto(true)}
-                className="py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs uppercase tracking-wide flex items-center gap-2 shadow-sm transition-all active:scale-95 flex-shrink-0"
+                className="py-4 px-6 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2.5 shadow-md transition-all active:scale-95 flex-shrink-0"
                 title="Adicionar item avulso com valor em aberto (F9)"
               >
-                <span>🏷️</span>
+                <span className="text-base">🏷️</span>
                 <span>Diversos (F9)</span>
               </button>
             </div>
