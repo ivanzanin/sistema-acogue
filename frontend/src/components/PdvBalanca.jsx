@@ -1793,125 +1793,123 @@ export default function PdvBalanca() {
               </div>
             </section>
 
-            {/* PAINEL LATERAL DIREITO: DISPLAY FRENTE DE CAIXA / CLIENTE E FINALIZAÇÃO */}
-            <aside className="w-88 md:w-96 lg:w-[440px] xl:w-[460px] flex flex-col bg-stone-900 text-stone-100 p-5 lg:p-6 flex-shrink-0 border-l border-stone-800 justify-between gap-5 overflow-y-auto shadow-2xl">
+            {/* PAINEL LATERAL DIREITO: DISPLAY FRENTE DE CAIXA / CLIENTE E FINALIZAÇÃO (FUNDO CLARO) */}
+            <aside className="w-88 md:w-96 lg:w-[440px] xl:w-[460px] flex flex-col bg-slate-100/90 text-stone-900 p-5 lg:p-6 flex-shrink-0 border-l border-stone-200 justify-between gap-5 overflow-y-auto shadow-sm">
               
               {/* TOPO: STATUS E DISPLAY DE PRODUTOS */}
               <div className="space-y-4">
                 
                 {/* BARRA DE STATUS DO CAIXA */}
                 <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full ${itensCarrinho.length > 0 ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-blue-400'}`} />
-                    <span className="text-xs font-black uppercase tracking-wider text-stone-300">
-                      {itensCarrinho.length > 0 ? 'Registrando Compra' : 'Caixa Livre · Disponível'}
+                  <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-2xs">
+                    <span className={`w-3 h-3 rounded-full ${itensCarrinho.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`} />
+                    <span className="text-xs font-black uppercase tracking-wider text-stone-700">
+                      {itensCarrinho.length > 0 ? 'Registrando Compra' : 'Caixa Livre · Pronto'}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono font-bold text-stone-400 bg-stone-800/80 px-2.5 py-0.5 rounded-full border border-stone-700/60 uppercase">
+                  <span className="text-[11px] font-mono font-bold text-stone-500 bg-white px-3 py-1 rounded-full border border-stone-200 uppercase shadow-2xs">
                     Frente de Caixa
                   </span>
                 </div>
 
                 {/* DISPLAY DO PRODUTO ATUAL / ÚLTIMO ITEM PASSADO */}
                 {itemExibicao ? (
-                  <div className="bg-stone-800/95 rounded-3xl p-5 border-2 border-emerald-500/50 shadow-xl relative overflow-hidden backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                  <div className="bg-white rounded-3xl p-5 border-2 border-emerald-500 shadow-md relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                        Item Registrado #{itensCarrinho.length}
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping inline-block" />
+                        🥩 Item Registrado #{itensCarrinho.length}
                       </span>
                       {itemExibicao.emPromocao && (
-                        <span className="text-[11px] bg-amber-500/20 text-amber-300 font-extrabold px-2 py-0.5 rounded border border-amber-500/30">
+                        <span className="text-xs bg-amber-100 text-amber-900 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-300">
                           🔥 Promoção
                         </span>
                       )}
                     </div>
 
                     {/* Nome do Produto com Alta Visibilidade */}
-                    <h3 className="text-xl lg:text-2xl font-black text-white leading-tight mb-4 line-clamp-2">
+                    <h3 className="text-xl lg:text-2xl font-black text-stone-900 leading-tight my-3 line-clamp-2">
                       {itemExibicao.nome}
                     </h3>
 
                     {/* Dados de Peso / Qtd / Preço / Subtotal */}
-                    <div className="bg-stone-900/90 rounded-2xl p-3.5 border border-stone-700/60 grid grid-cols-3 gap-2 text-center items-center">
+                    <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 grid grid-cols-3 gap-2 text-center items-center shadow-inner">
                       <div className="text-left pl-1">
-                        <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">
+                        <span className="text-[10px] uppercase font-extrabold text-stone-500 block tracking-wider">
                           {itemExibicao.unidade === 'UN' ? 'Quantidade' : 'Peso'}
                         </span>
-                        <span className="text-base lg:text-lg font-black font-mono text-stone-100">
+                        <span className="text-base lg:text-lg font-black font-mono text-stone-900">
                           {itemExibicao.peso} {itemExibicao.unidade?.toLowerCase() || 'un'}
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">
+                        <span className="text-[10px] uppercase font-extrabold text-stone-500 block tracking-wider">
                           Preço Unit.
                         </span>
-                        <span className="text-xs lg:text-sm font-bold font-mono text-stone-300">
+                        <span className="text-xs lg:text-sm font-bold font-mono text-stone-700">
                           R$ {parseFloat(itemExibicao.precoKg || 0).toFixed(2)}
                         </span>
                       </div>
 
                       <div className="text-right pr-1">
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
+                        <span className="text-[10px] uppercase font-extrabold text-emerald-700 block tracking-wider">
                           Subtotal
                         </span>
-                        <span className="text-lg lg:text-xl font-black font-mono text-emerald-400">
+                        <span className="text-lg lg:text-xl font-black font-mono text-emerald-700">
                           R$ {parseFloat(itemExibicao.total || 0).toFixed(2)}
                         </span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-stone-800/40 rounded-3xl p-6 border-2 border-dashed border-stone-800 flex flex-col items-center justify-center text-center py-7">
-                    <div className="w-14 h-14 rounded-2xl bg-stone-800/80 border border-stone-700/60 flex items-center justify-center text-2xl mb-3 shadow-inner">
+                  <div className="bg-white rounded-3xl p-6 border-2 border-stone-200 shadow-sm flex flex-col items-center justify-center text-center py-7">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-2xl mb-3 shadow-inner">
                       🛒
                     </div>
-                    <h4 className="text-base font-black text-stone-200">Pronto para Registrar</h4>
-                    <p className="text-xs text-stone-400 max-w-xs mt-1 leading-relaxed">
+                    <h4 className="text-base font-black text-stone-900">Pronto para Registrar</h4>
+                    <p className="text-xs text-stone-500 max-w-xs mt-1 leading-relaxed font-medium">
                       Passe o código de barras no leitor ou pesquise o produto na barra inferior.
                     </p>
                   </div>
                 )}
 
-                {/* VISOR DIGITAL: TOTAL A PAGAR */}
-                <div className="bg-gradient-to-br from-black via-stone-950 to-stone-900 rounded-3xl p-6 border-2 border-stone-700/80 shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-                  
+                {/* VISOR DIGITAL: TOTAL A PAGAR (FUNDO CLARO COM MÁXIMA LEITURA) */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-stone-300 shadow-md relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black uppercase tracking-widest text-emerald-400/90 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-stone-500 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                       TOTAL A PAGAR
                     </span>
-                    <span className="text-xs font-mono font-bold text-stone-400 bg-stone-900 px-3 py-1 rounded-full border border-stone-800">
+                    <span className="text-xs font-mono font-black text-stone-800 bg-stone-100 px-3 py-1 rounded-full border border-stone-200">
                       {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
                     </span>
                   </div>
 
-                  <div className="my-2 flex items-baseline justify-end gap-2">
-                    <span className="text-2xl lg:text-3xl text-emerald-500/80 font-bold font-mono select-none">R$</span>
-                    <span className="text-5xl lg:text-6xl font-black font-mono tracking-tight text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.35)]">
+                  <div className="my-2 flex items-baseline justify-end gap-2 font-mono">
+                    <span className="text-3xl lg:text-4xl text-stone-400 font-bold select-none">R$</span>
+                    <span className="text-6xl lg:text-7xl font-black tracking-tight text-emerald-600">
                       {totalGeral.toFixed(2)}
                     </span>
                   </div>
 
                   {/* Detalhes extras de resumo */}
-                  <div className="mt-4 pt-3.5 border-t border-stone-800/80 flex items-center justify-between text-xs font-medium text-stone-400">
+                  <div className="mt-4 pt-3.5 border-t border-stone-100 flex items-center justify-between text-xs font-semibold text-stone-600">
                     <div>
                       {pesoTotalKg > 0 && (
-                        <span>Peso Total: <strong className="font-mono text-stone-200 font-bold">{pesoTotalKg.toFixed(3)} kg</strong></span>
+                        <span>Peso Total: <strong className="font-mono text-stone-900 font-black">{pesoTotalKg.toFixed(3)} kg</strong></span>
                       )}
                       {pesoTotalKg > 0 && totalUnidades > 0 && <span className="mx-1.5">•</span>}
                       {totalUnidades > 0 && (
-                        <span>Unidades: <strong className="font-mono text-stone-200 font-bold">{totalUnidades} un</strong></span>
+                        <span>Unidades: <strong className="font-mono text-stone-900 font-black">{totalUnidades} un</strong></span>
                       )}
                       {pesoTotalKg === 0 && totalUnidades === 0 && (
-                        <span>Total de Itens: <strong className="font-mono text-stone-200 font-bold">{itensCarrinho.length}</strong></span>
+                        <span>Total de Itens: <strong className="font-mono text-stone-900 font-black">{itensCarrinho.length}</strong></span>
                       )}
                     </div>
 
                     {totalEconomia > 0 && (
-                      <span className="text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                      <span className="text-amber-900 font-black bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-300">
                         Economia: R$ {totalEconomia.toFixed(2)}
                       </span>
                     )}
@@ -1919,7 +1917,7 @@ export default function PdvBalanca() {
                 </div>
 
                 {erroVenda && !confirmar && (
-                  <div className="bg-red-950/80 border-2 border-red-500/50 text-red-200 text-xs sm:text-sm font-bold rounded-2xl p-4 shadow-lg">
+                  <div className="bg-red-50 border-2 border-red-300 text-red-700 text-xs sm:text-sm font-bold rounded-2xl p-4 shadow-sm">
                     ⚠️ {erroVenda}
                   </div>
                 )}
@@ -1933,20 +1931,20 @@ export default function PdvBalanca() {
                   disabled={itensCarrinho.length === 0 || salvando}
                   className={`w-full py-5 px-6 rounded-2xl font-black text-lg lg:text-xl uppercase tracking-wider transition-all duration-200 active:scale-98 flex items-center justify-between shadow-xl ${
                     itensCarrinho.length === 0
-                      ? 'bg-stone-800 text-stone-500 border border-stone-700 cursor-not-allowed shadow-none'
-                      : 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/50 border-2 border-emerald-400/40 hover:shadow-2xl'
+                      ? 'bg-stone-200/90 hover:bg-stone-200 text-stone-500 border-2 border-stone-300 cursor-not-allowed shadow-none'
+                      : 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-700/25 border-2 border-emerald-400/40 hover:shadow-2xl'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg ${
-                      itensCarrinho.length === 0 ? 'bg-stone-700 text-stone-500' : 'bg-white/20 text-white'
+                      itensCarrinho.length === 0 ? 'bg-stone-300 text-stone-500' : 'bg-white/20 text-white'
                     }`}>
                       {salvando ? '⏳' : vendaFinalizada ? '✓' : '💳'}
                     </span>
                     <span>{salvando ? 'Processando...' : vendaFinalizada ? 'Concluída!' : 'FINALIZAR VENDA'}</span>
                   </div>
                   <span className={`text-xs font-mono font-black px-2.5 py-1 rounded-lg border ${
-                    itensCarrinho.length === 0 ? 'bg-stone-700/60 border-stone-600 text-stone-500' : 'bg-emerald-950/60 border-emerald-300/40 text-emerald-100'
+                    itensCarrinho.length === 0 ? 'bg-stone-300/80 border-stone-400 text-stone-600' : 'bg-emerald-950/60 border-emerald-300/40 text-emerald-100'
                   }`}>
                     F10
                   </span>
@@ -1956,7 +1954,7 @@ export default function PdvBalanca() {
                   <button
                     type="button"
                     onClick={() => setItemDiversosAberto(true)}
-                    className="py-3.5 px-3 bg-stone-800 hover:bg-stone-700 text-amber-400 border border-amber-500/40 hover:border-amber-400 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
+                    className="py-3.5 px-3 bg-white hover:bg-amber-50 text-amber-800 border-2 border-amber-300 hover:border-amber-400 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
                   >
                     <span className="text-base">🏷️</span>
                     <span>+ Diversos (F9)</span>
@@ -1966,7 +1964,7 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={() => { setItensCarrinho([]); setErroVenda(null); setUltimoItemAdicionado(null); }}
                     disabled={itensCarrinho.length === 0}
-                    className="py-3.5 px-3 bg-stone-800 hover:bg-red-950/50 text-stone-400 hover:text-red-300 border border-stone-700 hover:border-red-500/50 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-sm disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-1.5 active:scale-95"
+                    className="py-3.5 px-3 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 border-2 border-stone-200 hover:border-red-300 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5 active:scale-95"
                   >
                     <span className="text-base">🧹</span>
                     <span>Limpar Venda</span>
@@ -1978,7 +1976,7 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={cancelarUltimaVenda}
                     disabled={cancelando}
-                    className="w-full py-3 bg-stone-800/80 hover:bg-red-950/60 text-red-400 hover:text-red-300 border border-red-500/30 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border-2 border-red-200 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2"
                   >
                     {cancelando ? 'Cancelando...' : '↩ Cancelar Última Venda'}
                   </button>
