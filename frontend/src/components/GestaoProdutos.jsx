@@ -191,6 +191,13 @@ export default function GestaoProdutos() {
     }
   }, []);
 
+  const abrirNovo = () => {
+    setEditando(null);
+    setForm(VAZIO);
+    setErro(null);
+    setModal(true);
+  };
+
   const abrirEditar = (p) => {
     setEditando(p.id);
     setForm({
