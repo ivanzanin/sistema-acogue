@@ -12,6 +12,7 @@
 *.sqlite
 backups/
 *.tmp*
+*.zip
 
 # Dependencies
 node_modules/

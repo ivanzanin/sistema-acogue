@@ -3,26 +3,24 @@
 :: Salva em backend\backups\ e mantem apenas os ultimos 7
 
 set ROOT=%~dp0
-set DB_ORIGEM=%ROOT%backend\prisma\acougue_admin.db
+set DB_ORIGEM=%ROOT%backend\prisma\prisma\acougue_admin.db
+if not exist "%DB_ORIGEM%" set DB_ORIGEM=%ROOT%backend\prisma\acougue_admin.db
 set PASTA_BACKUP=%ROOT%backend\backups
 
 :: Cria pasta de backup se nao existir
 if not exist "%PASTA_BACKUP%" mkdir "%PASTA_BACKUP%"
 
-:: Nome do arquivo com data e hora
-for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value 2^>nul') do set DT=%%i
-set ANO=%DT:~0,4%
-set MES=%DT:~4,2%
-set DIA=%DT:~6,2%
-set HOR=%DT:~8,2%
-set MIN=%DT:~10,2%
+:: Nome do arquivo com data e hora segura (compativel com Windows 10/11)
+for /f "delims=" %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd_HH-mm-ss"') do set DATA_HORA=%%i
+if not defined DATA_HORA set DATA_HORA=%date:~6,4%-%date:~3,2%-%date:~0,2%_%time:~0,2%-%time:~3,2%
+set DATA_HORA=%DATA_HORA: =0%
 
-set NOME_BACKUP=backup_%ANO%-%MES%-%DIA%_%HOR%-%MIN%.db
+set NOME_BACKUP=backup_%DATA_HORA%.db
 set DESTINO=%PASTA_BACKUP%\%NOME_BACKUP%
 
 :: Copia o banco
 if not exist "%DB_ORIGEM%" (
-    echo [BACKUP] Banco de dados nao encontrado: %DB_ORIGEM%
+    echo [BACKUP] Banco de dados nao encontrado em %ROOT%backend\prisma
     exit /b 1
 )
 
