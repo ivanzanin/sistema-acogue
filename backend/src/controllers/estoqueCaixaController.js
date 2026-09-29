@@ -262,6 +262,18 @@ exports.resumoCaixaHoje = async (req, res) => {
 exports.listarEstoque = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
+    // Auto-recuperação: limpa registros corrompidos com valores astronômicos (> 100000)
+    try {
+      await prisma.estoque.updateMany({
+        where: { tenantId, pesoKg: { gt: 100000 } },
+        data: { pesoKg: 0 },
+      });
+      await prisma.produto.updateMany({
+        where: { tenantId, estoqueAtual: { gt: 100000 }, codigoBarras: { not: '999' } },
+        data: { estoqueAtual: 0 },
+      });
+    } catch {}
+
     const estoqueKG = await prisma.estoque.findMany({ where: { tenantId }, orderBy: { nomeCorte: 'asc' } });
     const agora = new Date();
     const limite = new Date(agora); limite.setDate(agora.getDate() + 3);

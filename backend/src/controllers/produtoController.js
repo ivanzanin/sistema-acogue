@@ -16,7 +16,8 @@ exports.criar = async (req, res) => {
   const { nome, precoVenda, precoPromocao, custo, categoria, unidade, estoqueAtual, validade, codigoBarras } = req.body;
   if (!nome || !precoVenda) return res.status(400).json({ erro: 'Nome e precoVenda sao obrigatorios.' });
   try {
-    const qtdInicial = parseFloat(estoqueAtual || 0);
+    const rawEstoque = parseFloat(estoqueAtual || 0);
+    const qtdInicial = isNaN(rawEstoque) ? 0 : Math.min(99999, Math.max(0, rawEstoque));
     const promoNum = precoPromocao !== undefined && precoPromocao !== null && precoPromocao !== '' ? parseFloat(precoPromocao) : null;
 
     const produto = await prisma.produto.create({
@@ -60,7 +61,8 @@ exports.atualizar = async (req, res) => {
 
     const novoNome   = nome        !== undefined ? nome.trim()             : produtoAtual.nome;
     const novaUnid   = unidade     !== undefined ? unidade                 : produtoAtual.unidade;
-    const novoEstoque = estoqueAtual !== undefined ? parseFloat(estoqueAtual) : produtoAtual.estoqueAtual;
+    const rawEstoque = estoqueAtual !== undefined ? parseFloat(estoqueAtual) : produtoAtual.estoqueAtual;
+    const novoEstoque = isNaN(rawEstoque) ? 0 : Math.min(99999, Math.max(0, rawEstoque));
     const promoNum   = precoPromocao !== undefined ? (precoPromocao !== null && precoPromocao !== '' && parseFloat(precoPromocao) > 0 ? parseFloat(precoPromocao) : null) : undefined;
 
     await prisma.produto.updateMany({
@@ -168,10 +170,11 @@ exports.ajustarEstoque = async (req, res) => {
     const produto = await prisma.produto.findFirst({ where: { id: parseInt(id), tenantId } });
     if (!produto) return res.status(404).json({ erro: 'Produto nao encontrado.' });
 
+    const qtdNum = Math.min(99999, Math.max(0, parseFloat(quantidade || 0)));
     let novoEstoque;
-    if (operacao === 'adicionar')     novoEstoque = produto.estoqueAtual + parseFloat(quantidade);
-    else if (operacao === 'remover')  novoEstoque = Math.max(0, produto.estoqueAtual - parseFloat(quantidade));
-    else                              novoEstoque = parseFloat(quantidade);
+    if (operacao === 'adicionar')     novoEstoque = Math.min(99999, (produto.estoqueAtual || 0) + qtdNum);
+    else if (operacao === 'remover')  novoEstoque = Math.max(0, (produto.estoqueAtual || 0) - qtdNum);
+    else                              novoEstoque = qtdNum;
 
     const atualizado = await prisma.produto.update({
       where: { id: parseInt(id) },

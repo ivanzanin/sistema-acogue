@@ -197,7 +197,9 @@ export default function PainelGestao() {
                   {estoqueFiltrado.length === 0 ? (
                     <tr><td colSpan={6} className="py-10 text-center text-stone-400 text-sm">Nenhum produto encontrado para "{buscaEstoque}"</td></tr>
                   ) : estoqueFiltrado.map((item) => {
-                    const baixo = item.tipo === 'UN' ? item.pesoKg <= 5 : item.pesoKg < 3; const zerado=item.pesoKg<=0;
+                    const isDiversos = item.nomeCorte?.toLowerCase() === 'diversos' || item.codigoBarras === '999';
+                    const baixo = isDiversos ? false : (item.tipo === 'UN' ? item.pesoKg <= 5 : item.pesoKg < 3);
+                    const zerado = isDiversos ? false : item.pesoKg <= 0;
                     const val = item.statusValidade;
                     const rowBg = val === 'VENCIDO' ? 'bg-red-50 hover:bg-red-100' : val === 'VENCENDO' ? 'bg-amber-50 hover:bg-amber-100' : baixo ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-stone-100';
                     return (
@@ -210,8 +212,8 @@ export default function PainelGestao() {
                     </td>
                         <td className={`py-3 px-4 text-right font-bold font-mono text-lg ${zerado?'text-red-700':baixo?'text-red-700':'text-stone-900'}`}>
                           {item.tipo === 'UN'
-                            ? <>{Math.floor(item.pesoKg)}<span className="text-xs text-stone-500 font-normal ml-1">un</span></>
-                            : <>{item.pesoKg.toFixed(3)}<span className="text-xs text-stone-500 font-normal ml-1">kg</span></>
+                            ? <>{isDiversos ? '∞' : Math.floor(Number(item.pesoKg) || 0)}<span className="text-xs text-stone-500 font-normal ml-1">un</span></>
+                            : <>{(Number(item.pesoKg) || 0).toFixed(3)}<span className="text-xs text-stone-500 font-normal ml-1">kg</span></>
                           }
                         </td>
                         <td className="py-3 px-4 text-right text-xs text-stone-500">
@@ -235,8 +237,8 @@ export default function PainelGestao() {
                 <tfoot><tr className="border-t-2 border-stone-300 bg-stone-100/50">
                   <td className="py-3 px-4 text-xs text-stone-600 font-bold">Total</td>
                   <td className="py-3 px-4 text-right font-bold font-mono text-stone-900 text-sm">
-                    {estoqueFiltrado.filter(i=>i.tipo!=='UN').reduce((s,i)=>s+i.pesoKg,0).toFixed(3)} kg
-                    {estoqueFiltrado.some(i=>i.tipo==='UN') && <span className="ml-2 text-blue-700">{estoqueFiltrado.filter(i=>i.tipo==='UN').reduce((s,i)=>s+i.pesoKg,0)} un</span>}
+                    {estoqueFiltrado.filter(i=>i.tipo!=='UN').reduce((s,i)=>s+(Number(i.pesoKg)||0),0).toFixed(3)} kg
+                    {estoqueFiltrado.some(i=>i.tipo==='UN' && i.nomeCorte?.toLowerCase() !== 'diversos') && <span className="ml-2 text-blue-700">{estoqueFiltrado.filter(i=>i.tipo==='UN' && i.nomeCorte?.toLowerCase() !== 'diversos').reduce((s,i)=>s+(Number(i.pesoKg)||0),0)} un</span>}
                   </td>
                   <td colSpan={2} />
                 </tr></tfoot>

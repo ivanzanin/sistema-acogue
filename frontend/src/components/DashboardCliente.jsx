@@ -4,6 +4,13 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const fmtQtd = (val, unidade = 'kg') => {
+  const n = Number(val);
+  if (!isFinite(n) || isNaN(n) || n < 0) return `0 ${unidade}`;
+  if (n > 999999) return `> 999k ${unidade}`;
+  return `${n.toLocaleString('pt-BR', { minimumFractionDigits: unidade === 'kg' ? 1 : 0, maximumFractionDigits: 1 })} ${unidade}`;
+};
+
 const TooltipCustom = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -70,9 +77,10 @@ export default function DashboardCliente() {
           { label:'Faturamento do Mes', valor: fmt(dados.faturamentoMes), sub:`${dados.totalVendas} venda(s)`, cor:'border-emerald-500/20', icon:'💰' },
           { label:'Ticket Medio', valor: fmt(dados.ticketMedio), sub:'Por venda no mes', cor:'border-brand-600/20', icon:'🧾' },
           {
-            label:'Estoque', valor:`${dados.estoque.totalKg.toFixed(1)} kg${dados.estoque.totalUn ? ` + ${dados.estoque.totalUn} un` : ''}`,
-            sub: dados.estoque.alertasBaixo > 0 ? `⚠ ${dados.estoque.alertasBaixo} item(s) baixo` : `${dados.estoque.itens} produto(s)`,
-            cor: dados.estoque.alertasBaixo > 0 ? 'border-red-500/30' : 'border-stone-200', icon:'📦'
+            label:'Estoque',
+            valor:`${fmtQtd(dados.estoque?.totalKg, 'kg')}${dados.estoque?.totalUn ? ` + ${fmtQtd(dados.estoque.totalUn, 'un')}` : ''}`,
+            sub: dados.estoque?.alertasBaixo > 0 ? `⚠ ${dados.estoque.alertasBaixo} item(s) baixo` : `${dados.estoque?.itens || 0} produto(s)`,
+            cor: dados.estoque?.alertasBaixo > 0 ? 'border-red-500/30' : 'border-stone-200', icon:'📦'
           },
         ].map(({ label, valor, sub, cor, icon }) => (
           <div key={label} className={`bg-white border rounded-xl p-5 ${cor}`}>

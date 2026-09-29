@@ -15,13 +15,41 @@ exports.resumo = async (req, res) => {
     const totalVendas    = vendasMes.length;
     const ticketMedio    = totalVendas > 0 ? faturamentoMes / totalVendas : 0;
 
+    // Auto-recuperação: limpa registros corrompidos com valores astronômicos (ex: teclas presas como 66666... ou 75555...)
+    try {
+      await prisma.estoque.updateMany({
+        where: { tenantId, pesoKg: { gt: 100000 } },
+        data: { pesoKg: 0 },
+      });
+      await prisma.produto.updateMany({
+        where: { tenantId, estoqueAtual: { gt: 100000 }, codigoBarras: { not: '999' } },
+        data: { estoqueAtual: 0 },
+      });
+    } catch {}
+
     // Estoque KG + UN
     const estoqueKG = await prisma.estoque.findMany({ where: { tenantId } });
     const produtosUN = await prisma.produto.findMany({ where: { tenantId, unidade: 'UN', ativo: true } });
-    const totalKg = estoqueKG.reduce((s, e) => s + e.pesoKg, 0);
-    const totalUn = produtosUN.reduce((s, p) => s + p.estoqueAtual, 0);
-    const alertasBaixo = estoqueKG.filter(e => e.pesoKg < 3 && e.pesoKg > 0).length
-                       + produtosUN.filter(p => p.estoqueAtual <= 5 && p.estoqueAtual > 0).length;
+    
+    const totalKg = estoqueKG.reduce((s, e) => {
+      const v = Number(e.pesoKg);
+      return s + (isFinite(v) && v > 0 && v < 100000 ? v : 0);
+    }, 0);
+
+    const totalUn = produtosUN.reduce((s, p) => {
+      if (p.codigoBarras === '999' || p.nome?.toLowerCase() === 'diversos') return s;
+      const v = Number(p.estoqueAtual);
+      return s + (isFinite(v) && v > 0 && v < 100000 ? v : 0);
+    }, 0);
+
+    const alertasBaixo = estoqueKG.filter(e => {
+      const v = Number(e.pesoKg);
+      return isFinite(v) && v < 3 && v > 0;
+    }).length + produtosUN.filter(p => {
+      if (p.codigoBarras === '999' || p.nome?.toLowerCase() === 'diversos') return false;
+      const v = Number(p.estoqueAtual);
+      return isFinite(v) && v <= 5 && v > 0;
+    }).length;
 
     // Top 3 cortes do mês
     const cortesMap = {};
