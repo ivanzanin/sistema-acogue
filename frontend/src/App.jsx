@@ -229,7 +229,7 @@ export default function App() {
       ) : (
         <div style={{display:'flex', height:'100vh', overflow:'hidden', background:'#FAF7F2'}}>
           <Sidebar onLogout={logout} />
-          <main style={{flex:1, overflowY:'auto'}}>
+          <main style={{flex:1, minWidth:0, height:'100vh', overflowY:'auto', display:'flex', flexDirection:'column'}}>
             <Routes>
               <Route path="/"            element={<Navigate to="/dashboard" />} />
               <Route path="/login"       element={<Navigate to="/dashboard" />} />
