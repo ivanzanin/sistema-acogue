@@ -18,35 +18,27 @@ exports.registrarDesossa = async (req, res) => {
 
     const ops = [];
     for (const ct of cortes) {
-      const peso = toFloat(ct.pesoKg) || 0;
       const precoVenda = toFloat(ct.precoVendaKg) || 0;
       const custo = toFloat(custoKg) || 0;
 
-      // 1. Atualiza tabela Estoque (saldo de kg)
-      ops.push(prisma.estoque.upsert({
-        where: { nomeCorte_tenantId: { nomeCorte: ct.nome, tenantId } },
-        update: { pesoKg: { increment: peso }, ...(ct.validade && { validade: new Date(ct.validade) }) },
-        create: { nomeCorte: ct.nome, pesoKg: peso, tenantId, validade: ct.validade ? new Date(ct.validade) : null },
-      }));
-
-      // 2. Cria ou atualiza produto na tabela Produtos (para aparecer no PDV)
+      // Cria ou atualiza produto na tabela Produtos com preços da desossa
       if (precoVenda > 0) {
         const existente = produtosExistentes[ct.nome];
         if (existente) {
           ops.push(prisma.produto.update({
             where: { id: existente.id },
-            data: { precoVenda, custo, estoqueAtual: { increment: peso }, ativo: true }
+            data: { precoVenda, custo, ativo: true }
           }));
         } else {
           ops.push(prisma.produto.create({
-            data: { nome: ct.nome, precoVenda, custo, estoqueAtual: peso, unidade: 'KG', categoria: 'Bovino', tenantId }
+            data: { nome: ct.nome, precoVenda, custo, estoqueAtual: 0, unidade: 'KG', categoria: 'Bovino', tenantId }
           }));
         }
       }
     }
 
     const resultado = await prisma.$transaction(ops);
-    res.json({ mensagem: 'Estoque e produtos atualizados.', itens: resultado });
+    res.json({ mensagem: 'Produtos e preços da desossa atualizados.', itens: resultado });
   } catch (e) {
     console.error('[estoque:desossa]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao registrar desossa.' });
@@ -117,45 +109,33 @@ exports.registrarVenda = async (req, res) => {
       finalPagamentosJson = JSON.stringify([{ forma: formaPagamento, valor: totalVenda, valorPago: vp, troco }]);
     }
 
-    // Verificar e preparar decrementos
+    // Controle de estoque exclusivo para Assados (sessão aberta)
     const ops = [];
     for (const item of itens) {
-      if (item.unidade === 'UN') {
-        const produto = await prisma.produto.findFirst({ where: { nome: item.nome, tenantId, ativo: true } });
-        const qtd = toFloat(item.quantidade) || 1;
-        if (produto && produto.estoqueAtual < qtd)
-          return res.status(400).json({ erro: `Estoque insuficiente: ${item.nome}. Disponivel: ${produto.estoqueAtual} un` });
-        if (produto) ops.push(prisma.produto.update({ where: { id: produto.id }, data: { estoqueAtual: { decrement: qtd } } }));
-        // Sincroniza com produtos assados vinculados (modulo Assados)
-        if (produto) {
-          const assadosVinculados = await prisma.produtoAssado.findMany({
-            where: { tenantId, produtoOrigemId: produto.id, sessao: { status: 'ABERTA' } }
-          });
-          for (const pa of assadosVinculados) {
-            ops.push(prisma.produtoAssado.update({
-              where: { id: pa.id },
-              data: { estoqueAtual: Math.max(0, pa.estoqueAtual - qtd) }
-            }));
-          }
-        }
-      } else {
-        const estoque = await prisma.estoque.findUnique({ where: { nomeCorte_tenantId: { nomeCorte: item.nome, tenantId } } });
-        const peso = toFloat(item.peso) || 0;
-        if (estoque && estoque.pesoKg < peso)
-          return res.status(400).json({ erro: `Estoque insuficiente: ${item.nome}. Disponivel: ${estoque.pesoKg.toFixed(3)} kg` });
-        if (estoque) ops.push(prisma.estoque.updateMany({ where: { nomeCorte: item.nome, tenantId }, data: { pesoKg: { decrement: peso } } }));
-        // Sincroniza assados vinculados (busca produto principal pelo nome)
-        const prodKG = await prisma.produto.findFirst({ where: { nome: item.nome, tenantId, ativo: true } });
-        if (prodKG) {
-          const assadosVinculados = await prisma.produtoAssado.findMany({
-            where: { tenantId, produtoOrigemId: prodKG.id, sessao: { status: 'ABERTA' } }
-          });
-          for (const pa of assadosVinculados) {
-            ops.push(prisma.produtoAssado.update({
-              where: { id: pa.id },
-              data: { estoqueAtual: Math.max(0, pa.estoqueAtual - peso) }
-            }));
-          }
+      const qtdOuPeso = item.unidade === 'UN' ? (toFloat(item.quantidade) || 1) : (toFloat(item.peso) || 0);
+
+      // 1. Se vendido diretamente com o nome de um produto assado na sessão aberta
+      const assadoDireto = await prisma.produtoAssado.findFirst({
+        where: { tenantId, nome: item.nome, sessao: { status: 'ABERTA' } }
+      });
+      if (assadoDireto) {
+        ops.push(prisma.produtoAssado.update({
+          where: { id: assadoDireto.id },
+          data: { estoqueAtual: Math.max(0, assadoDireto.estoqueAtual - qtdOuPeso) }
+        }));
+      }
+
+      // 2. Se vinculado a um produto de origem do açougue
+      const prodOrigem = await prisma.produto.findFirst({ where: { nome: item.nome, tenantId, ativo: true } });
+      if (prodOrigem) {
+        const assadosVinculados = await prisma.produtoAssado.findMany({
+          where: { tenantId, produtoOrigemId: prodOrigem.id, sessao: { status: 'ABERTA' } }
+        });
+        for (const pa of assadosVinculados) {
+          ops.push(prisma.produtoAssado.update({
+            where: { id: pa.id },
+            data: { estoqueAtual: Math.max(0, pa.estoqueAtual - qtdOuPeso) }
+          }));
         }
       }
     }
@@ -204,15 +184,25 @@ exports.cancelarVenda = async (req, res) => {
       return res.status(400).json({ erro: 'Apenas vendas do dia atual podem ser canceladas.' });
 
     const itens = JSON.parse(venda.itensJson);
-    const ops = itens.map(i => {
-      if (i.unidade === 'UN') {
-        return prisma.produto.updateMany({ where: { nome: i.nome, tenantId }, data: { estoqueAtual: { increment: toFloat(i.quantidade) || 1 } } });
+    const ops = [];
+
+    // Se algum item cancelado pertencer a uma sessão de assados aberta, devolve ao estoque
+    for (const i of itens) {
+      const qtdOuPeso = i.unidade === 'UN' ? (toFloat(i.quantidade) || 1) : (toFloat(i.peso) || 0);
+      const assadoDireto = await prisma.produtoAssado.findFirst({
+        where: { tenantId, nome: i.nome, sessao: { status: 'ABERTA' } }
+      });
+      if (assadoDireto) {
+        ops.push(prisma.produtoAssado.update({
+          where: { id: assadoDireto.id },
+          data: { estoqueAtual: assadoDireto.estoqueAtual + qtdOuPeso }
+        }));
       }
-      return prisma.estoque.updateMany({ where: { nomeCorte: i.nome, tenantId }, data: { pesoKg: { increment: toFloat(i.peso) || 0 } } });
-    });
+    }
+
     ops.push(prisma.caixa.update({ where: { id: parseInt(id) }, data: { cancelado: true, canceladoEm: new Date() } }));
-    await prisma.$transaction(ops);
-    res.json({ mensagem: 'Venda cancelada e estoque estornado.' });
+    if (ops.length > 0) await prisma.$transaction(ops);
+    res.json({ mensagem: 'Venda cancelada com sucesso.' });
   } catch (e) {
     console.error('[estoque:cancelar]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao cancelar venda.' });

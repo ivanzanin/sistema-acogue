@@ -22,7 +22,7 @@ function Tutorial({ onFechar }) {
           {[
             { n:1, t:'Escolha ou crie uma desossa', d:'Cada tipo de peça (Dianteiro, Traseiro, etc.) é um template. Na próxima vez que fizer, os cortes e valores já vêm preenchidos.' },
             { n:2, t:'Ajuste os valores', d:'Edite peso e preço de cada corte conforme o dia. O sistema mostra a margem em tempo real. Use o leitor de código de barras para preencher automaticamente.' },
-            { n:3, t:'Calcular + Registrar', d:'Salva os valores como template, atualiza o estoque e cria/atualiza os produtos para venda na Frente de Caixa.' },
+            { n:3, t:'Calcular + Registrar', d:'Salva os valores como template, calcula o rendimento e atualiza os preços e custos dos cortes para a Frente de Caixa.' },
           ].map(({ n, t, d }) => (
             <div key={n} style={{ display:'flex', gap:'16px' }}>
               <div style={{ width:36, height:36, borderRadius:'50%', background:'#D97706', color:'white', fontWeight:800, fontSize:'13px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{n}</div>
@@ -358,7 +358,7 @@ function EditorDesossa({ template, onVoltar, onRegistrado }) {
       };
       const { data } = await api.post(`/desossa/${template.id}/registrar`, payload);
       setResumo({ custoTotal: data.resultado.custoTotalInicial, vendaTotal: data.resultado.vendaEsperada, margem: data.resultado.margemGeral });
-      setSucesso(`Desossa "${template.nome}" registrada! Estoque e produtos atualizados.`);
+      setSucesso(`Desossa "${template.nome}" calculada e registrada! Preços de custo e venda atualizados.`);
       setRegistrado(true);
       onRegistrado();
     } catch (e) {

@@ -4,7 +4,7 @@ import api from '../utils/api';
 const CATEGORIAS_KG = ['Bovino', 'Suino', 'Frango', 'Embutido', 'Outros'];
 const CATEGORIAS_UN = ['Espetinho', 'Bebida', 'Porcao', 'Outros'];
 
-const VAZIO = { nome: '', precoVenda: '', precoPromocao: '', custo: '', categoria: 'Bovino', unidade: 'KG', estoqueAtual: '', codigoBarras: '', validade: '' };
+const VAZIO = { nome: '', precoVenda: '', precoPromocao: '', custo: '', categoria: 'Bovino', unidade: 'KG', codigoBarras: '', validade: '' };
 
 const ICONE_CAT = {
   Bovino:'🥩', Suino:'🐷', Frango:'🍗', Embutido:'🌭', Espetinho:'🍢',
@@ -327,23 +327,14 @@ export default function GestaoProdutos() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={lbl}>Categoria</label>
-                  <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}
-                    className={inp}>
-                    {(form.unidade === 'UN' ? CATEGORIAS_UN : CATEGORIAS_KG).map(c =>
-                      <option key={c} value={c}>{c}</option>
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>
-                    {form.unidade === 'UN' ? 'Estoque Inicial (un)' : 'Estoque Inicial (kg)'}
-                  </label>
-                  <input type="number" value={form.estoqueAtual} onChange={e => setForm({...form, estoqueAtual: e.target.value})}
-                    className={inp} placeholder={form.unidade === 'UN' ? '0' : '0.000'} />
-                </div>
+              <div>
+                <label className={lbl}>Categoria</label>
+                <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}
+                  className={inp}>
+                  {(form.unidade === 'UN' ? CATEGORIAS_UN : CATEGORIAS_KG).map(c =>
+                    <option key={c} value={c}>{c}</option>
+                  )}
+                </select>
               </div>
 
               {/* Código de Barras */}
@@ -364,10 +355,10 @@ export default function GestaoProdutos() {
               </div>
 
               {/* Info box */}
-              <div className={`rounded-lg px-3 py-2.5 text-xs border ${form.unidade === 'UN' ? 'bg-blue-500/5 border-blue-500/20 text-blue-700' : 'bg-brand-600/5 border-brand-600/20 text-amber-700'}`}>
+              <div className={`rounded-lg px-3 py-2 text-xs border ${form.unidade === 'UN' ? 'bg-blue-500/5 border-blue-500/20 text-blue-700' : 'bg-brand-600/5 border-brand-600/20 text-amber-700'}`}>
                 {form.unidade === 'UN'
-                  ? '📦 Produto vendido por unidade. O estoque diminui 1 por venda (ou qtd informada).'
-                  : '⚖️ Produto vendido por peso. O estoque vem da desossa e diminui em kg a cada venda.'}
+                  ? '🍢 Produto vendido por unidade (preço fixo no caixa).'
+                  : '⚖️ Produto vendido por peso (pesado e tarifado na balança).'}
               </div>
 
               {erro && <p className="text-red-700 text-xs bg-red-50 border border-red-200 rounded px-3 py-2">{erro}</p>}
@@ -387,62 +378,6 @@ export default function GestaoProdutos() {
         </div>
       )}
 
-      {/* MODAL AJUSTE DE ESTOQUE (UN) */}
-      {modalEstoque && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm">
-          <div className="bg-white border border-stone-200 rounded-xl p-6 w-full max-w-sm shadow-modal">
-            <p className="text-xs text-blue-700 font-medium font-bold mb-1">Ajustar Estoque</p>
-            <p className="text-stone-900 font-bold mb-4">{modalEstoque.nome}</p>
-            <p className="text-stone-600 text-sm mb-4">
-              Estoque atual: <span className="font-bold text-stone-900">{modalEstoque.estoqueAtual} un</span>
-            </p>
-
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {[
-                { id: 'adicionar', label: 'Adicionar', cor: 'border-emerald-500 bg-emerald-500/10 text-emerald-700' },
-                { id: 'remover',   label: 'Remover',   cor: 'border-red-500 bg-red-500/10 text-red-700' },
-                { id: 'definir',   label: 'Definir',   cor: 'border-brand-600 bg-brand-600/10 text-amber-700' },
-              ].map(op => (
-                <button key={op.id} onClick={() => setOpAjuste(op.id)}
-                  className={`py-2 rounded-lg border-2 text-xs font-bold transition-all
-                    ${opAjuste === op.id ? op.cor : 'border-stone-300 text-stone-500'}`}>
-                  {op.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-4">
-              <label className={lbl}>Quantidade (unidades)</label>
-              <input type="number" value={qtdAjuste} onChange={e => setQtdAjuste(e.target.value)}
-                autoFocus min="0"
-                className={inp} placeholder="0"
-                onKeyDown={e => e.key === 'Enter' && ajustarEstoque()} />
-            </div>
-
-            {qtdAjuste && (
-              <div className="bg-stone-100 rounded px-3 py-2 text-xs mb-4">
-                <span className="text-stone-600">Resultado: </span>
-                <span className="text-stone-900 font-bold">
-                  {opAjuste === 'adicionar' ? modalEstoque.estoqueAtual + parseFloat(qtdAjuste || 0)
-                  : opAjuste === 'remover' ? Math.max(0, modalEstoque.estoqueAtual - parseFloat(qtdAjuste || 0))
-                  : parseFloat(qtdAjuste || 0)} un
-                </span>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button onClick={ajustarEstoque} disabled={ajustando}
-                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-stone-900 font-bold text-xs font-medium rounded transition-all active:scale-95">
-                {ajustando ? 'Salvando...' : 'Confirmar'}
-              </button>
-              <button onClick={() => { setModalEstoque(null); setQtdAjuste(''); setOpAjuste('adicionar'); }}
-                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium rounded">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -509,7 +444,6 @@ export default function GestaoProdutos() {
                 unidade="KG"
                 onEditar={abrirEditar}
                 onDeletar={deletar}
-                onAjustarEstoque={null}
               />
             </div>
           )}
@@ -527,7 +461,6 @@ export default function GestaoProdutos() {
                 unidade="UN"
                 onEditar={abrirEditar}
                 onDeletar={deletar}
-                onAjustarEstoque={(p) => { setModalEstoque(p); setQtdAjuste(''); setOpAjuste('adicionar'); }}
               />
             </div>
           )}
@@ -537,20 +470,19 @@ export default function GestaoProdutos() {
   );
 }
 
-function TabelaProdutos({ produtos, unidade, onEditar, onDeletar, onAjustarEstoque }) {
+function TabelaProdutos({ produtos, unidade, onEditar, onDeletar }) {
   return (
     <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
       <table className="w-full">
         <thead><tr className="border-b border-stone-200">
-          {['Produto', 'Categoria', unidade === 'UN' ? 'Preco/un' : 'Preco/kg', 'Custo', 'Margem', 'Estoque', ''].map((h, i) => (
-            <th key={i} className={`text-xs text-stone-500 font-medium py-3 px-4 font-normal ${i < 2 ? 'text-left' : 'text-right'} last:text-center`}>{h}</th>
+          {['Produto', 'Categoria', unidade === 'UN' ? 'Preço/un' : 'Preço/kg', 'Custo', 'Margem', 'Tipo', 'Ações'].map((h, i) => (
+            <th key={i} className={`text-xs text-stone-500 font-medium py-3 px-4 font-normal ${i < 2 ? 'text-left' : 'text-right'} ${i >= 5 ? 'text-center' : ''}`}>{h}</th>
           ))}
         </tr></thead>
         <tbody>
           {produtos.map(p => {
             const margem = p.precoVenda > 0 ? (((p.precoVenda - p.custo) / p.precoVenda) * 100).toFixed(1) : '0.0';
             const ok = parseFloat(margem) >= 35;
-            const estoqueBaixo = unidade === 'UN' ? p.estoqueAtual <= 5 : false;
             return (
               <tr key={p.id} className="border-b border-stone-200/50 hover:bg-stone-100/30 transition-colors group">
                 <td className="py-3 px-4">
@@ -582,20 +514,13 @@ function TabelaProdutos({ produtos, unidade, onEditar, onDeletar, onAjustarEstoq
                     {margem}%
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <span className={`font-bold font-mono ${estoqueBaixo ? 'text-red-700' : 'text-stone-900'}`}>
-                    {unidade === 'UN' ? `${p.estoqueAtual} un` : `${p.estoqueAtual.toFixed(3)} kg`}
+                <td className="py-3 px-4 text-center">
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${unidade === 'UN' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                    {unidade === 'UN' ? '🍢 UN' : '⚖️ KG'}
                   </span>
-                  {estoqueBaixo && <span className="ml-1 text-xs text-red-700">⚠</span>}
                 </td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onAjustarEstoque && (
-                      <button onClick={() => onAjustarEstoque(p)}
-                        className="text-xs text-blue-700 hover:text-blue-800 px-2 py-1 rounded border border-blue-700 hover:border-blue-400 transition-colors">
-                        +/- Estoque
-                      </button>
-                    )}
                     <button onClick={() => onEditar(p)}
                       className="text-xs text-stone-600 hover:text-amber-700 px-2 py-1 rounded border border-stone-300 hover:border-brand-600 transition-colors">
                       Editar

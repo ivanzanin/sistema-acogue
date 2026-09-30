@@ -13,11 +13,9 @@ exports.listar = async (req, res) => {
 
 exports.criar = async (req, res) => {
   const tenantId = getTenantId(req);
-  const { nome, precoVenda, precoPromocao, custo, categoria, unidade, estoqueAtual, validade, codigoBarras } = req.body;
+  const { nome, precoVenda, precoPromocao, custo, categoria, unidade, validade, codigoBarras } = req.body;
   if (!nome || !precoVenda) return res.status(400).json({ erro: 'Nome e precoVenda sao obrigatorios.' });
   try {
-    const rawEstoque = parseFloat(estoqueAtual || 0);
-    const qtdInicial = isNaN(rawEstoque) ? 0 : Math.min(99999, Math.max(0, rawEstoque));
     const promoNum = precoPromocao !== undefined && precoPromocao !== null && precoPromocao !== '' ? parseFloat(precoPromocao) : null;
 
     const produto = await prisma.produto.create({
@@ -26,7 +24,7 @@ exports.criar = async (req, res) => {
         precoVenda: parseFloat(precoVenda),
         precoPromocao: promoNum && promoNum > 0 ? promoNum : null,
         custo: parseFloat(custo || 0),
-        estoqueAtual: qtdInicial,
+        estoqueAtual: 0,
         unidade: unidade || 'KG',
         categoria: categoria || 'Bovino',
         validade: validade ? new Date(validade) : null,
@@ -34,15 +32,6 @@ exports.criar = async (req, res) => {
         tenantId,
       },
     });
-
-    // Se for KG e tiver estoque inicial, cria/atualiza na tabela Estoque
-    if ((unidade || 'KG') === 'KG' && qtdInicial > 0) {
-      await prisma.estoque.upsert({
-        where: { nomeCorte_tenantId: { nomeCorte: nome.trim(), tenantId } },
-        update: { pesoKg: { increment: qtdInicial } },
-        create: { nomeCorte: nome.trim(), pesoKg: qtdInicial, tenantId },
-      });
-    }
 
     res.status(201).json(produto);
   } catch (e) {
@@ -54,71 +43,28 @@ exports.criar = async (req, res) => {
 exports.atualizar = async (req, res) => {
   const tenantId = getTenantId(req);
   const { id } = req.params;
-  const { nome, precoVenda, precoPromocao, custo, estoqueAtual, categoria, unidade, validade, codigoBarras } = req.body;
+  const { nome, precoVenda, precoPromocao, custo, categoria, unidade, validade, codigoBarras } = req.body;
   try {
     const produtoAtual = await prisma.produto.findFirst({ where: { id: parseInt(id), tenantId } });
     if (!produtoAtual) return res.status(404).json({ erro: 'Produto nao encontrado.' });
 
-    const novoNome   = nome        !== undefined ? nome.trim()             : produtoAtual.nome;
-    const novaUnid   = unidade     !== undefined ? unidade                 : produtoAtual.unidade;
-    const rawEstoque = estoqueAtual !== undefined ? parseFloat(estoqueAtual) : produtoAtual.estoqueAtual;
-    const novoEstoque = isNaN(rawEstoque) ? 0 : Math.min(99999, Math.max(0, rawEstoque));
-    const promoNum   = precoPromocao !== undefined ? (precoPromocao !== null && precoPromocao !== '' && parseFloat(precoPromocao) > 0 ? parseFloat(precoPromocao) : null) : undefined;
+    const novoNome = nome !== undefined ? nome.trim() : produtoAtual.nome;
+    const novaUnid = unidade !== undefined ? unidade : produtoAtual.unidade;
+    const promoNum = precoPromocao !== undefined ? (precoPromocao !== null && precoPromocao !== '' && parseFloat(precoPromocao) > 0 ? parseFloat(precoPromocao) : null) : undefined;
 
     await prisma.produto.updateMany({
       where: { id: parseInt(id), tenantId },
       data: {
-        ...(nome          !== undefined && { nome: novoNome }),
-        ...(precoVenda    !== undefined && { precoVenda: parseFloat(precoVenda) }),
-        ...(promoNum      !== undefined && { precoPromocao: promoNum }),
-        ...(custo         !== undefined && { custo: parseFloat(custo) }),
-        ...(estoqueAtual  !== undefined && { estoqueAtual: novoEstoque }),
-        ...(categoria     !== undefined && { categoria }),
-        ...(unidade       !== undefined && { unidade: novaUnid }),
-        ...(validade      !== undefined && { validade: validade ? new Date(validade) : null }),
-        ...(codigoBarras  !== undefined && { codigoBarras: codigoBarras || null }),
+        ...(nome         !== undefined && { nome: novoNome }),
+        ...(precoVenda   !== undefined && { precoVenda: parseFloat(precoVenda) }),
+        ...(promoNum     !== undefined && { precoPromocao: promoNum }),
+        ...(custo        !== undefined && { custo: parseFloat(custo) }),
+        ...(categoria    !== undefined && { categoria }),
+        ...(unidade      !== undefined && { unidade: novaUnid }),
+        ...(validade     !== undefined && { validade: validade ? new Date(validade) : null }),
+        ...(codigoBarras !== undefined && { codigoBarras: codigoBarras || null }),
       },
     });
-
-    // Sincroniza tabela Estoque para produtos KG
-    if (novaUnid === 'KG') {
-      const nomeAntigo = produtoAtual.nome;
-
-      // Se nome mudou, renomeia no estoque
-      if (nome !== undefined && novoNome !== nomeAntigo) {
-        const estoqueAntigo = await prisma.estoque.findUnique({
-          where: { nomeCorte_tenantId: { nomeCorte: nomeAntigo, tenantId } }
-        });
-        if (estoqueAntigo) {
-          // Verifica se já existe com novo nome
-          const estoqueNovo = await prisma.estoque.findUnique({
-            where: { nomeCorte_tenantId: { nomeCorte: novoNome, tenantId } }
-          });
-          if (estoqueNovo) {
-            // Soma no existente e remove o antigo
-            await prisma.estoque.update({
-              where: { id: estoqueNovo.id },
-              data: { pesoKg: estoqueNovo.pesoKg + estoqueAntigo.pesoKg }
-            });
-            await prisma.estoque.delete({ where: { id: estoqueAntigo.id } });
-          } else {
-            await prisma.estoque.update({
-              where: { id: estoqueAntigo.id },
-              data: { nomeCorte: novoNome }
-            });
-          }
-        }
-      }
-
-      // Se estoqueAtual foi editado manualmente, atualiza tabela Estoque
-      if (estoqueAtual !== undefined) {
-        await prisma.estoque.upsert({
-          where: { nomeCorte_tenantId: { nomeCorte: novoNome, tenantId } },
-          update: { pesoKg: novoEstoque },
-          create: { nomeCorte: novoNome, pesoKg: novoEstoque, tenantId },
-        });
-      }
-    }
 
     const atualizado = await prisma.produto.findFirst({ where: { id: parseInt(id), tenantId } });
     res.json(atualizado);
@@ -140,20 +86,6 @@ exports.remover = async (req, res) => {
       where: { id: parseInt(id), tenantId },
       data: { ativo: false },
     });
-
-    // Remove do estoque KG também
-    if (produto.unidade === 'KG') {
-      await prisma.estoque.deleteMany({
-        where: { nomeCorte: produto.nome, tenantId }
-      });
-    }
-    // Para UN: zera estoque mas mantém histórico
-    if (produto.unidade === 'UN') {
-      await prisma.produto.updateMany({
-        where: { id: parseInt(id), tenantId },
-        data: { estoqueAtual: 0 }
-      });
-    }
 
     res.json({ mensagem: 'Produto removido.' });
   } catch (e) {
@@ -180,15 +112,6 @@ exports.ajustarEstoque = async (req, res) => {
       where: { id: parseInt(id) },
       data: { estoqueAtual: novoEstoque },
     });
-
-    // Sincroniza tabela Estoque para KG
-    if (produto.unidade === 'KG') {
-      await prisma.estoque.upsert({
-        where: { nomeCorte_tenantId: { nomeCorte: produto.nome, tenantId } },
-        update: { pesoKg: novoEstoque },
-        create: { nomeCorte: produto.nome, pesoKg: novoEstoque, tenantId },
-      });
-    }
 
     res.json(atualizado);
   } catch (e) {

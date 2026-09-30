@@ -69,33 +69,7 @@ function ModalAbrirSessao({ onAberta, onFechar }) {
       await api.post('/assados/abrir');
 
       // Para vinculados, validar estoque vs açougue e perguntar se quer adicionar diferença
-      const ajustesAcougue = [];
-      for (let i = 0; i < template.length; i++) {
-        const t = template[i];
-        const qtd = parseFloat(estoques[i]) || 0;
-        if (!t.produtoOrigemId || qtd <= 0) continue;
-        const acougue = acougueMap[t.produtoOrigemId];
-        if (!acougue) continue;
-        const disponivel = acougue.estoqueAtual || 0;
-        if (qtd > disponivel) {
-          ajustesAcougue.push({
-            template: t, acougue, diferenca: qtd - disponivel,
-            qtdSessao: qtd, unidade: t.unidade,
-          });
-        }
-      }
-
-      if (ajustesAcougue.length > 0) {
-        const linhas = ajustesAcougue.map(a =>
-          `• ${a.template.emoji || '🍗'} ${a.template.nome}: você quer ${a.qtdSessao} un mas o açougue tem ${a.acougue.estoqueAtual || 0} un → vai adicionar +${a.diferenca.toFixed(2)} un ao açougue`
-        ).join('\n');
-        const ok = confirm(
-          `⚠ Atenção: alguns produtos têm estoque maior que o disponível no açougue!\n\n${linhas}\n\nDeseja continuar e ajustar o estoque do açougue?`
-        );
-        if (!ok) { setAbrindo(false); return; }
-      }
-
-      // Cria cada produto da sessão com o estoque digitado
+      // Cria cada produto da sessão com o estoque de assados digitado
       for (let i = 0; i < template.length; i++) {
         const t = template[i];
         const qtd = parseFloat(estoques[i]) || 0;
@@ -107,15 +81,6 @@ function ModalAbrirSessao({ onAberta, onFechar }) {
             produtoOrigemId: t.produtoOrigemId || null,
           });
         } catch (err) { console.error('Erro ao recriar produto', t.nome, err); }
-      }
-
-      // Adiciona a diferença no açougue para os produtos que excederam
-      for (const a of ajustesAcougue) {
-        try {
-          await api.patch(`/produtos/${a.acougue.id}/estoque`, { quantidade: a.diferenca, operacao: 'adicionar' });
-        } catch (err) {
-          console.error('Erro ao ajustar açougue', a.template.nome, err);
-        }
       }
 
       onAberta();
@@ -156,22 +121,15 @@ function ModalAbrirSessao({ onAberta, onFechar }) {
               {template.map((t, i) => {
                 const acougue = t.produtoOrigemId ? acougueMap[t.produtoOrigemId] : null;
                 const qtd = parseFloat(estoques[i]) || 0;
-                const disponivel = acougue?.estoqueAtual || 0;
-                const excede = acougue && qtd > disponivel;
                 const unTxt = 'un'; // estoque de assados sempre em unidades
                 return (
-                  <div key={i} style={{ padding: '12px 14px', background: excede ? '#FEF3C7' : '#F8FAFC', border: `1.5px solid ${excede ? '#FCD34D' : '#E2E8F0'}`, borderRadius: '10px' }}>
+                  <div key={i} style={{ padding: '12px 14px', background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '24px' }}>{t.emoji || '🍗'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, fontSize: '14px', color: '#1E293B' }}>{t.nome}</p>
                         <p style={{ fontSize: '11px', color: '#64748B' }}>
                           {BRL(t.preco)}/{unTxt}
-                          {acougue && (
-                            <span style={{ marginLeft: '6px', color: '#1E40AF', fontWeight: 600 }}>
-                              · 🔗 açougue: {disponivel} {unTxt}
-                            </span>
-                          )}
                         </p>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -181,17 +139,12 @@ function ModalAbrirSessao({ onAberta, onFechar }) {
                           min="0"
                           value={estoques[i] ?? ''}
                           onChange={e => setEstoque(i, e.target.value)}
-                          style={{ width: '80px', padding: '8px 10px', border: `1.5px solid ${excede ? '#F59E0B' : '#E2E8F0'}`, borderRadius: '8px', fontSize: '14px', textAlign: 'right', fontFamily: 'inherit', outline: 'none', fontWeight: 600 }}
+                          style={{ width: '80px', padding: '8px 10px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', textAlign: 'right', fontFamily: 'inherit', outline: 'none', fontWeight: 600 }}
                           placeholder="0"
                         />
                         <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>{unTxt}</span>
                       </div>
                     </div>
-                    {excede && (
-                      <p style={{ fontSize: '11px', color: '#92400E', marginTop: '8px', paddingLeft: '36px', lineHeight: 1.4 }}>
-                        ⚠ Excede em <strong>{(qtd - disponivel).toFixed(2)} un</strong> o estoque do açougue — vai adicionar a diferença lá
-                      </p>
-                    )}
                   </div>
                 );
               })}
@@ -255,20 +208,6 @@ function ModalProdutos({ produtos, onAtualizado, onFechar }) {
 
     const estoque = parseFloat(form.estoqueInicial) || 0;
 
-    // Se vinculado ao açougue, avisa se quer adicionar mais do que tem disponível
-    if (produtoOrigem && estoque > 0 && !editando) {
-      const unTxt = form.unidade === 'KG' ? 'kg' : 'un';
-      const disponivel = produtoOrigem.estoqueAtual || 0;
-      if (disponivel < estoque) {
-        const continuar = confirm(
-          `⚠ Atenção: estoque insuficiente no açougue!\n\n` +
-          `${produtoOrigem.nome} (açougue): ${disponivel} ${unTxt}\n` +
-          `Você está colocando aqui: ${estoque} ${unTxt}\n\n` +
-          `Deseja salvar mesmo assim?`
-        );
-        if (!continuar) return;
-      }
-    }
 
     setSalvando(true);
     try {

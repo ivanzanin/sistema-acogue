@@ -129,17 +129,11 @@ exports.registrarDesossa = async (req, res) => {
       },
     });
 
-    // Atualiza estoque e produtos
+    // Atualiza produtos com custos e preços da desossa (sem acúmulo de estoque descontrolado)
     for (const corte of cortesNorm) {
       const corteResult = resultado.cortes.find(r => r.nome === corte.nome);
       const precoVenda  = corte.precoVendaKg;
-
-      // Estoque
-      await prisma.estoque.upsert({
-        where: { nomeCorte_tenantId: { nomeCorte: corte.nome, tenantId } },
-        update: { pesoKg: { increment: corte.pesoKg }, validade: corte.validade || undefined },
-        create: { nomeCorte: corte.nome, pesoKg: corte.pesoKg, tenantId, validade: corte.validade },
-      });
+      const custoFinal  = corteResult?.custoRateado && corte.pesoKg > 0 ? corteResult.custoRateado / corte.pesoKg : custoNum;
 
       // Produto
       const prodExiste = await prisma.produto.findFirst({ where: { nome: corte.nome, tenantId } });
@@ -147,19 +141,20 @@ exports.registrarDesossa = async (req, res) => {
         await prisma.produto.update({
           where: { id: prodExiste.id },
           data: {
-            precoVenda:   precoVenda > 0 ? precoVenda : prodExiste.precoVenda,
-            custo:        corteResult?.custoRateado ? corteResult.custoRateado / corte.pesoKg : prodExiste.custo,
-            estoqueAtual: { increment: corte.pesoKg },
+            precoVenda: precoVenda > 0 ? precoVenda : prodExiste.precoVenda,
+            custo:      custoFinal > 0 ? custoFinal : prodExiste.custo,
+            ativo:      true,
           },
         });
       } else {
         await prisma.produto.create({
           data: {
-            nome:        corte.nome,
-            precoVenda:  precoVenda > 0 ? precoVenda : 0,
-            custo:       corteResult ? corteResult.custoRateado / corte.pesoKg : custoNum,
-            estoqueAtual: corte.pesoKg,
-            unidade:     'KG',
+            nome:         corte.nome,
+            precoVenda:   precoVenda > 0 ? precoVenda : 0,
+            custo:        custoFinal > 0 ? custoFinal : custoNum,
+            estoqueAtual: 0,
+            unidade:      'KG',
+            categoria:    'Bovino',
             tenantId,
           },
         });
