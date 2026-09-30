@@ -236,23 +236,28 @@ function Sidebar({ onLogout }) {
             <div
               style={{
                 width: '196px',
-                height: '92px',
+                aspectRatio: '1158 / 701',
                 borderRadius: '10px',
                 background: '#2B1408',
-                border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                border: '1.5px solid rgba(245, 158, 11, 0.45)',
                 overflow: 'hidden',
                 boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '2px',
+                padding: 0,
               }}
               title="Casa de Carne Rezende"
             >
               <img
                 src={logoSrc}
                 alt="Casa de Carne Rezende"
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
               />
             </div>
           ) : (
