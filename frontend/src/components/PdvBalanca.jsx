@@ -1728,7 +1728,7 @@ export default function PdvBalanca() {
                 ) : (
                   <div className="p-5 space-y-2.5">
                     {/* Cabeçalho da Tabela */}
-                    <div className="grid grid-cols-12 text-xs sm:text-sm font-black text-stone-400 uppercase tracking-wider pb-3 px-4 border-b border-stone-200">
+                    <div className="grid grid-cols-12 text-sm sm:text-base font-black text-stone-600 uppercase tracking-wider pb-3.5 px-4 border-b-2 border-stone-200">
                       <div className="col-span-1 text-center">#</div>
                       <div className="col-span-5">Produto / Descrição</div>
                       <div className="col-span-2 text-right">Preço Unit.</div>
@@ -1740,48 +1740,48 @@ export default function PdvBalanca() {
                     {itensCarrinho.map((item, idx) => (
                       <div
                         key={item.uid}
-                        className="grid grid-cols-12 items-center bg-white border-2 border-stone-200 hover:border-brand-500 rounded-2xl p-4 shadow-2xs transition-all group"
+                        className="grid grid-cols-12 items-center bg-white border-2 border-stone-200 hover:border-brand-500 rounded-2xl p-4 sm:p-4.5 shadow-2xs transition-all group"
                       >
                         {/* # */}
-                        <div className="col-span-1 text-center font-black text-sm text-stone-400">
+                        <div className="col-span-1 text-center font-black text-base sm:text-lg text-stone-500 font-mono">
                           {idx + 1}
                         </div>
 
                         {/* Nome */}
                         <div className="col-span-5 pr-3">
                           <div className="flex items-center gap-2">
-                            <p className="font-black text-stone-900 text-base sm:text-lg truncate">{item.nome}</p>
+                            <p className="font-black text-stone-900 text-lg sm:text-xl truncate leading-snug">{item.nome}</p>
                             {item.emPromocao && (
                               <span className="text-xs bg-amber-500/15 text-amber-800 font-extrabold px-2 py-0.5 rounded border border-amber-500/30 flex-shrink-0">🔥 Promo</span>
                             )}
                           </div>
-                          <span className="text-xs text-stone-500 font-medium">
+                          <span className="text-sm text-stone-500 font-bold">
                             {item.unidade === 'UN' ? 'Unidade' : 'Quilo (KG)'}
                           </span>
                         </div>
 
                         {/* Preço Unitário */}
-                        <div className="col-span-2 text-right text-sm sm:text-base font-bold text-stone-700 font-mono">
+                        <div className="col-span-2 text-right text-base sm:text-lg font-black text-stone-800 font-mono">
                           R$ {parseFloat(item.precoKg).toFixed(2)}
                         </div>
 
                         {/* Qtd / Peso com botões de ajuste rápido */}
-                        <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <div className="col-span-2 flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => alterarQuantidade(item.uid, -1)}
-                            className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-base flex items-center justify-center transition-colors active:scale-95"
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900 font-black text-lg sm:text-xl flex items-center justify-center transition-colors active:scale-95"
                             title="Diminuir quantidade"
                           >
                             −
                           </button>
-                          <span className="font-black text-sm sm:text-base font-mono text-stone-900 min-w-[3.5rem] text-center">
+                          <span className="font-black text-base sm:text-lg font-mono text-stone-900 min-w-[4rem] text-center">
                             {item.peso} {item.unidade.toLowerCase()}
                           </span>
                           <button
                             type="button"
                             onClick={() => alterarQuantidade(item.uid, +1)}
-                            className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-base flex items-center justify-center transition-colors active:scale-95"
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900 font-black text-lg sm:text-xl flex items-center justify-center transition-colors active:scale-95"
                             title="Aumentar quantidade"
                           >
                             +
@@ -1790,13 +1790,13 @@ export default function PdvBalanca() {
 
                         {/* Subtotal e Excluir */}
                         <div className="col-span-2 flex items-center justify-end gap-3">
-                          <span className="font-black text-base sm:text-xl font-mono text-emerald-700">
+                          <span className="font-black text-xl sm:text-2xl font-mono text-emerald-700">
                             R$ {item.total.toFixed(2)}
                           </span>
                           <button
                             type="button"
                             onClick={() => removerItem(item.uid)}
-                            className="w-8 h-8 rounded-xl text-stone-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-lg font-bold transition-all opacity-40 group-hover:opacity-100"
+                            className="w-9 h-9 rounded-xl text-stone-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-xl font-black transition-all opacity-40 group-hover:opacity-100"
                             title="Remover item da venda"
                           >
                             ✕
@@ -1809,123 +1809,123 @@ export default function PdvBalanca() {
               </div>
             </section>
 
-            {/* PAINEL LATERAL DIREITO: DISPLAY FRENTE DE CAIXA / CLIENTE E FINALIZAÇÃO (COMPACTO E AUTO-AJUSTÁVEL) */}
-            <aside className="w-80 md:w-88 lg:w-96 flex flex-col bg-slate-100/90 text-stone-900 p-3 sm:p-3.5 flex-shrink-0 border-l border-stone-200 justify-between overflow-hidden gap-2 shadow-xs">
+            {/* PAINEL LATERAL DIREITO: DISPLAY FRENTE DE CAIXA / CLIENTE E FINALIZAÇÃO (FUNDO CLARO E LETRAS GRANDES) */}
+            <aside className="w-84 md:w-96 lg:w-[410px] flex flex-col bg-stone-100/90 text-stone-900 p-3.5 sm:p-4 flex-shrink-0 border-l-2 border-stone-200 justify-between overflow-y-auto gap-2.5 shadow-sm">
               
               {/* TOPO: STATUS E DISPLAY DE PRODUTOS */}
-              <div className="space-y-2 flex-shrink-0">
+              <div className="space-y-2.5 flex-shrink-0">
                 
                 {/* BARRA DE STATUS DO CAIXA */}
-                <div className="flex items-center justify-between px-0.5">
-                  <div className="flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-full border border-stone-200 shadow-2xs">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-2xs">
                     <span className={`w-2.5 h-2.5 rounded-full ${itensCarrinho.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`} />
-                    <span className="text-[11px] font-black uppercase tracking-wider text-stone-700">
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-stone-800">
                       {itensCarrinho.length > 0 ? 'Registrando Compra' : 'Caixa Livre · Pronto'}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold text-stone-500 bg-white px-2 py-0.5 rounded-full border border-stone-200 uppercase shadow-2xs">
+                  <span className="text-xs font-mono font-black text-stone-600 bg-white px-2.5 py-1 rounded-full border border-stone-200 uppercase shadow-2xs">
                     Frente de Caixa
                   </span>
                 </div>
 
                 {/* DISPLAY DO PRODUTO ATUAL / ÚLTIMO ITEM PASSADO */}
                 {itemExibicao ? (
-                  <div className="bg-white rounded-2xl p-2.5 sm:p-3 border-2 border-emerald-500 shadow-xs relative overflow-hidden animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping inline-block" />
+                  <div className="bg-white rounded-2xl p-3.5 sm:p-4 border-2 border-emerald-500 shadow-sm relative overflow-hidden animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping inline-block" />
                         Item #{itensCarrinho.length}
                       </span>
                       {itemExibicao.emPromocao && (
-                        <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
+                        <span className="text-xs bg-amber-100 text-amber-900 font-black px-2.5 py-1 rounded-full border border-amber-300">
                           🔥 Promoção
                         </span>
                       )}
                     </div>
 
                     {/* Nome do Produto com Alta Visibilidade */}
-                    <h3 className="text-base sm:text-lg font-black text-stone-900 leading-tight my-1 truncate" title={itemExibicao.nome}>
+                    <h3 className="text-lg sm:text-xl font-black text-stone-900 leading-tight my-1.5 truncate" title={itemExibicao.nome}>
                       {itemExibicao.nome}
                     </h3>
 
                     {/* Dados de Peso / Qtd / Preço / Subtotal */}
-                    <div className="bg-stone-50 rounded-xl p-2 border border-stone-200 grid grid-cols-3 gap-1 text-center items-center">
+                    <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-200 grid grid-cols-3 gap-1.5 text-center items-center">
                       <div className="text-left pl-1">
-                        <span className="text-[9px] uppercase font-bold text-stone-400 block tracking-wider">
+                        <span className="text-[10px] sm:text-xs uppercase font-extrabold text-stone-500 block tracking-wider">
                           {itemExibicao.unidade === 'UN' ? 'Qtd' : 'Peso'}
                         </span>
-                        <span className="text-xs sm:text-sm font-black font-mono text-stone-900 truncate block">
+                        <span className="text-sm sm:text-base font-black font-mono text-stone-900 truncate block">
                           {itemExibicao.peso} {itemExibicao.unidade?.toLowerCase() || 'un'}
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-stone-400 block tracking-wider">
+                        <span className="text-[10px] sm:text-xs uppercase font-extrabold text-stone-500 block tracking-wider">
                           Unitário
                         </span>
-                        <span className="text-[11px] sm:text-xs font-bold font-mono text-stone-700 block truncate">
+                        <span className="text-xs sm:text-sm font-black font-mono text-stone-700 block truncate">
                           R$ {parseFloat(itemExibicao.precoKg || 0).toFixed(2)}
                         </span>
                       </div>
 
                       <div className="text-right pr-1">
-                        <span className="text-[9px] uppercase font-bold text-emerald-700 block tracking-wider">
+                        <span className="text-[10px] sm:text-xs uppercase font-extrabold text-emerald-700 block tracking-wider">
                           Subtotal
                         </span>
-                        <span className="text-sm sm:text-base font-black font-mono text-emerald-700 block truncate">
+                        <span className="text-base sm:text-lg font-black font-mono text-emerald-700 block truncate">
                           R$ {parseFloat(itemExibicao.total || 0).toFixed(2)}
                         </span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl p-2.5 border-2 border-stone-200 shadow-2xs flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-base flex-shrink-0">
+                  <div className="bg-white rounded-2xl p-3 border-2 border-stone-200 shadow-2xs flex items-center gap-3">
+                    <span className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-xl flex-shrink-0">
                       🛒
                     </span>
                     <div className="min-w-0">
-                      <h4 className="text-xs font-black text-stone-900 leading-tight">Pronto para Registrar</h4>
-                      <p className="text-[10px] text-stone-400 truncate">Aguardando código no leitor ou busca...</p>
+                      <h4 className="text-sm font-black text-stone-900 leading-tight">Pronto para Registrar</h4>
+                      <p className="text-xs text-stone-400 truncate">Aguardando código no leitor ou busca...</p>
                     </div>
                   </div>
                 )}
 
                 {/* VISOR DIGITAL: TOTAL A PAGAR (FUNDO CLARO COM MÁXIMA LEITURA) */}
-                <div className="bg-white rounded-2xl p-3 sm:p-3.5 border-2 border-stone-300 shadow-sm relative overflow-hidden flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-stone-500 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="bg-white rounded-2xl p-3.5 sm:p-4 border-2 border-stone-300 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-stone-500 flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                       TOTAL A PAGAR
                     </span>
-                    <span className="text-[10px] sm:text-[11px] font-mono font-black text-stone-800 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                    <span className="text-xs sm:text-sm font-mono font-black text-stone-800 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
                       {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
                     </span>
                   </div>
 
-                  <div className="my-0.5 flex items-baseline justify-end gap-1.5 font-mono">
-                    <span className="text-2xl text-stone-400 font-bold select-none">R$</span>
-                    <span className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-emerald-600 leading-none">
+                  <div className="my-1 flex items-baseline justify-end gap-2 font-mono">
+                    <span className="text-3xl sm:text-4xl text-stone-400 font-black select-none">R$</span>
+                    <span className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-emerald-600 leading-none">
                       {totalGeral.toFixed(2)}
                     </span>
                   </div>
 
                   {/* Detalhes extras de resumo */}
-                  <div className="mt-2 pt-2 border-t border-stone-100 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-stone-500">
+                  <div className="mt-2.5 pt-2.5 border-t border-stone-100 flex items-center justify-between text-xs sm:text-sm font-bold text-stone-600">
                     <div>
                       {pesoTotalKg > 0 && (
-                        <span>Peso: <strong className="font-mono text-stone-800 font-black">{pesoTotalKg.toFixed(3)} kg</strong></span>
+                        <span>Peso: <strong className="font-mono text-stone-900 font-black">{pesoTotalKg.toFixed(3)} kg</strong></span>
                       )}
-                      {pesoTotalKg > 0 && totalUnidades > 0 && <span className="mx-1">•</span>}
+                      {pesoTotalKg > 0 && totalUnidades > 0 && <span className="mx-1.5">•</span>}
                       {totalUnidades > 0 && (
-                        <span>Qtd: <strong className="font-mono text-stone-800 font-black">{totalUnidades} un</strong></span>
+                        <span>Qtd: <strong className="font-mono text-stone-900 font-black">{totalUnidades} un</strong></span>
                       )}
                       {pesoTotalKg === 0 && totalUnidades === 0 && (
-                        <span>Itens: <strong className="font-mono text-stone-800 font-black">{itensCarrinho.length}</strong></span>
+                        <span>Itens: <strong className="font-mono text-stone-900 font-black">{itensCarrinho.length}</strong></span>
                       )}
                     </div>
 
                     {totalEconomia > 0 && (
-                      <span className="text-amber-900 font-black bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 text-[9px] sm:text-[10px]">
+                      <span className="text-amber-900 font-black bg-amber-50 px-2 py-0.5 rounded border border-amber-300 text-xs">
                         Econ: R$ {totalEconomia.toFixed(2)}
                       </span>
                     )}
@@ -1933,46 +1933,46 @@ export default function PdvBalanca() {
                 </div>
 
                 {erroVenda && !confirmar && (
-                  <div className="bg-red-50 border-2 border-red-300 text-red-700 text-xs font-bold rounded-xl p-2.5 shadow-2xs">
+                  <div className="bg-red-50 border-2 border-red-300 text-red-700 text-sm font-bold rounded-xl p-3 shadow-2xs">
                     ⚠️ {erroVenda}
                   </div>
                 )}
               </div>
 
               {/* RODAPÉ DO PAINEL: BOTÕES DE FINALIZAÇÃO E ATALHOS */}
-              <div className="space-y-2 pt-1 flex-shrink-0">
+              <div className="space-y-2.5 pt-1 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setConfirmar(true)}
                   disabled={itensCarrinho.length === 0 || salvando}
-                  className={`w-full py-3 px-4 rounded-xl font-black text-sm sm:text-base uppercase tracking-wider transition-all duration-150 active:scale-98 flex items-center justify-between shadow-md ${
+                  className={`w-full py-4 px-5 rounded-2xl font-black text-base sm:text-lg uppercase tracking-wider transition-all duration-150 active:scale-98 flex items-center justify-between shadow-md ${
                     itensCarrinho.length === 0
                       ? 'bg-stone-200/90 hover:bg-stone-200 text-stone-500 border-2 border-stone-300 cursor-not-allowed shadow-none'
                       : 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-700/25 border-2 border-emerald-400/40 hover:shadow-lg'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-7 h-7 rounded-xl flex items-center justify-center text-base ${
                       itensCarrinho.length === 0 ? 'bg-stone-300 text-stone-500' : 'bg-white/20 text-white'
                     }`}>
                       {salvando ? '⏳' : vendaFinalizada ? '✓' : '💳'}
                     </span>
                     <span>{salvando ? 'Processando...' : vendaFinalizada ? 'Concluída!' : 'FINALIZAR VENDA'}</span>
                   </div>
-                  <span className={`text-[11px] font-mono font-black px-2 py-0.5 rounded border ${
+                  <span className={`text-xs sm:text-sm font-mono font-black px-2.5 py-1 rounded-lg border ${
                     itensCarrinho.length === 0 ? 'bg-stone-300/80 border-stone-400 text-stone-600' : 'bg-emerald-950/60 border-emerald-300/40 text-emerald-100'
                   }`}>
                     F10
                   </span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setItemDiversosAberto(true)}
-                    className="py-2 px-2 bg-white hover:bg-amber-50 text-amber-800 border-2 border-amber-300 hover:border-amber-400 rounded-xl text-xs font-black transition-all shadow-2xs flex items-center justify-center gap-1 active:scale-95"
+                    className="py-3 px-3 bg-white hover:bg-amber-50 text-amber-900 border-2 border-amber-300 hover:border-amber-400 rounded-xl text-xs sm:text-sm font-black transition-all shadow-2xs flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <span className="text-sm">🏷️</span>
+                    <span className="text-base">🏷️</span>
                     <span>+ Diversos (F9)</span>
                   </button>
 
@@ -1980,9 +1980,9 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={() => { setItensCarrinho([]); setErroVenda(null); setUltimoItemAdicionado(null); }}
                     disabled={itensCarrinho.length === 0}
-                    className="py-2 px-2 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 border-2 border-stone-200 hover:border-red-300 rounded-xl text-xs font-black transition-all shadow-2xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1 active:scale-95"
+                    className="py-3 px-3 bg-white hover:bg-red-50 text-stone-700 hover:text-red-700 border-2 border-stone-200 hover:border-red-300 rounded-xl text-xs sm:text-sm font-black transition-all shadow-2xs disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <span className="text-sm">🧹</span>
+                    <span className="text-base">🧹</span>
                     <span>Limpar</span>
                   </button>
                 </div>
@@ -1992,7 +1992,7 @@ export default function PdvBalanca() {
                     type="button"
                     onClick={cancelarUltimaVenda}
                     disabled={cancelando}
-                    className="w-full py-2 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
                   >
                     {cancelando ? 'Cancelando...' : '↩ Cancelar Última Venda'}
                   </button>
@@ -2076,9 +2076,9 @@ export default function PdvBalanca() {
 
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none text-stone-400">
-                  <span className="text-lg">📷</span>
-                  <span className="text-xs font-black uppercase tracking-wider bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded border border-stone-200">Scanner</span>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none text-stone-400">
+                  <span className="text-xl">📷</span>
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider bg-stone-100 text-stone-700 px-2 py-0.5 rounded-md border border-stone-200">Scanner</span>
                 </div>
                 <input
                   ref={inputBaixoRef}
@@ -2087,24 +2087,24 @@ export default function PdvBalanca() {
                   onChange={handleBuscaBaixoChange}
                   onKeyDown={handleBuscaBaixoKeyDown}
                   placeholder="Aponte o leitor de código de barras ou digite o nome do produto... (Pressione Enter)"
-                  className="w-full bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-300 focus:border-brand-500 rounded-xl pl-28 pr-10 py-2.5 text-stone-900 text-sm sm:text-base font-bold focus:outline-none shadow-inner transition-all font-sans"
+                  className="w-full bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-300 focus:border-brand-500 rounded-xl pl-32 pr-12 py-3 text-stone-900 text-base sm:text-lg font-bold focus:outline-none shadow-inner transition-all font-sans"
                 />
                 {buscaBaixo && (
                   <button
                     type="button"
                     onClick={() => { setBuscaBaixo(''); setSugestoesAbertas(false); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xl w-6 h-6 flex items-center justify-center rounded-full hover:bg-stone-200 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-2xl w-7 h-7 flex items-center justify-center rounded-full hover:bg-stone-200 transition-colors"
                   >
                     ×
                   </button>
                 )}
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-stone-100 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 flex-shrink-0 select-none">
-                <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-md font-mono font-black border border-amber-300">F9</span>
+              <div className="hidden sm:flex items-center gap-2.5 px-3.5 py-2.5 bg-stone-100 rounded-xl border border-stone-200 text-xs sm:text-sm font-bold text-stone-700 flex-shrink-0 select-none">
+                <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md font-mono font-black border border-amber-300">F9</span>
                 <span>Diversos</span>
                 <span className="text-stone-300 mx-0.5">•</span>
-                <span className="bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded-md font-mono font-black border border-emerald-300">F10</span>
+                <span className="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md font-mono font-black border border-emerald-300">F10</span>
                 <span>Finalizar</span>
               </div>
             </div>
