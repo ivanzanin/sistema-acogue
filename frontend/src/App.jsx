@@ -150,8 +150,6 @@ function Sidebar({ onLogout }) {
   const alertas = useAlertaEstoque();
   const cliente = getCliente();
   const isAdmin = cliente?.isAdmin === true;
-  const fileRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
   const location = useLocation();
 
   // Preferência de barra recolhida salva no localStorage
@@ -192,28 +190,7 @@ function Sidebar({ onLogout }) {
     ] : []),
   ];
 
-  const uploadLogo = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const resp  = await fetch('/api/tenant/logo', { method:'POST', headers:{'Content-Type':file.type,'Authorization':`Bearer ${token}`}, body:file });
-      const data  = await resp.json();
-      if (data.logoUrl) {
-        const cl = JSON.parse(localStorage.getItem('cliente')||'{}');
-        cl.logoUrl = data.logoUrl;
-        localStorage.setItem('cliente', JSON.stringify(cl));
-        window.location.reload();
-      }
-    } catch {
-      alert('Erro ao enviar imagem. Verifique se o arquivo tem menos de 2MB.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const logoSrc = cliente?.logoUrl || '/logos/logo-rezende.png';
+  const logoSrc = '/logos/logo-rezende.png';
 
   return (
     <div
@@ -246,9 +223,9 @@ function Sidebar({ onLogout }) {
           userSelect: 'none',
         }}
       >
-        {/* CABEÇALHO / LOGO DO AÇOUGUE */}
+        {/* CABEÇALHO / LOGO DO AÇOUGUE FIXO */}
         <div style={{
-          padding: expandida ? '16px 12px 14px' : '14px 8px',
+          padding: expandida ? '14px 10px' : '14px 8px',
           borderBottom: '1px solid #27272A',
           display: 'flex',
           flexDirection: 'column',
@@ -256,101 +233,51 @@ function Sidebar({ onLogout }) {
           gap: '8px',
         }}>
           {expandida ? (
-            <>
-              <div
-                style={{
-                  position: 'relative',
-                  width: '190px',
-                  height: '84px',
-                  borderRadius: '10px',
-                  background: 'rgba(0,0,0,0.4)',
-                  border: '1.5px solid rgba(245, 158, 11, 0.3)',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
-                }}
-                onClick={() => fileRef.current?.click()}
-                title="Clique para alterar a logo"
-              >
-                <img
-                  src={logoSrc}
-                  alt="Casa de Carne Rezende"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(0,0,0,0.65)',
-                    opacity: 0,
-                    transition: 'opacity 0.2s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-                >
-                  <span style={{ color: 'white', fontSize: '11px', fontWeight: 700 }}>
-                    {uploading ? 'Enviando...' : '📷 Trocar Logo'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Botão de upload explícito */}
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '6px',
-                  color: '#D4D4D8',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.2)'; e.currentTarget.style.color = '#F59E0B'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#D4D4D8'; }}
-              >
-                <span>📷</span>
-                <span>{uploading ? 'Enviando...' : 'Personalizar Logo'}</span>
-              </button>
-            </>
+            <div
+              style={{
+                width: '196px',
+                height: '92px',
+                borderRadius: '10px',
+                background: '#2B1408',
+                border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                overflow: 'hidden',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '2px',
+              }}
+              title="Casa de Carne Rezende"
+            >
+              <img
+                src={logoSrc}
+                alt="Casa de Carne Rezende"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </div>
           ) : (
             <div
               style={{
-                width: '44px',
-                height: '44px',
+                width: '46px',
+                height: '46px',
                 borderRadius: '10px',
-                background: 'rgba(245, 158, 11, 0.15)',
-                border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                background: '#2B1408',
+                border: '1.5px solid rgba(245, 158, 11, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
               }}
-              onClick={() => fileRef.current?.click()}
-              title="Casa de Carne Rezende (Clique para trocar logo)"
+              title="Casa de Carne Rezende"
             >
               <img
                 src={logoSrc}
-                alt="Logo"
+                alt="Casa de Carne Rezende"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadLogo} />
         </div>
 
         {/* NAVEGAÇÃO PRINCIPAL */}
