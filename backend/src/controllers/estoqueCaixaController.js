@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma');
-const { inicioDia } = require('../lib/dateUtils');
+const { inicioDia, fimDia } = require('../lib/dateUtils');
 const { toFloat, getTenantId } = require('../lib/validate');
 
 exports.registrarDesossa = async (req, res) => {
@@ -362,5 +362,130 @@ exports.alertasValidade = async (req, res) => {
   } catch (e) {
     console.error('[alertas:validade]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao buscar alertas.' });
+  }
+};
+
+exports.vendasPorProduto = async (req, res) => {
+  try {
+    const tenantId = getTenantId(req);
+    const { dias = '30' } = req.query;
+
+    const agora = new Date();
+    let dataInicio = null;
+    const dataFim = fimDia();
+
+    if (dias === 'hoje' || dias === '0' || dias === 0) {
+      dataInicio = inicioDia();
+    } else if (dias === 'todas') {
+      dataInicio = null;
+    } else {
+      const numDias = parseInt(dias) || 30;
+      dataInicio = new Date(agora);
+      dataInicio.setDate(dataInicio.getDate() - (numDias - 1));
+      dataInicio.setHours(0, 0, 0, 0);
+    }
+
+    const whereClause = {
+      tenantId,
+      cancelado: false,
+    };
+
+    if (dataInicio) {
+      whereClause.OR = [
+        { data: { gte: dataInicio, lte: dataFim } },
+        { createdAt: { gte: dataInicio, lte: dataFim } },
+      ];
+    }
+
+    const vendas = await prisma.caixa.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        data: true,
+        createdAt: true,
+        valorTotal: true,
+        itensJson: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const produtosMap = {};
+    let totalFaturamentoPeriodo = 0;
+    let totalKgPeriodo = 0;
+    let totalUnPeriodo = 0;
+
+    for (const v of vendas) {
+      try {
+        const itens = JSON.parse(v.itensJson);
+        if (!Array.isArray(itens)) continue;
+
+        const produtosNaVenda = new Set();
+
+        for (const item of itens) {
+          const nome = (item.nome || 'Diversos').trim();
+          const totalItem = parseFloat(item.total || 0) || 0;
+          const pesoItem = parseFloat(item.peso || item.pesoKg || 0) || 0;
+          const qtdItem = parseFloat(item.quantidade || item.qtd || (item.unidade === 'UN' ? 1 : 0)) || 0;
+          const unidade = (item.unidade || (pesoItem > 0 ? 'KG' : 'UN')).toUpperCase();
+
+          if (!produtosMap[nome]) {
+            produtosMap[nome] = {
+              nome,
+              unidade: unidade === 'UN' ? 'UN' : 'KG',
+              totalKg: 0,
+              totalUn: 0,
+              faturamento: 0,
+              qtdTransacoes: 0,
+            };
+          }
+
+          produtosMap[nome].faturamento += totalItem;
+          totalFaturamentoPeriodo += totalItem;
+
+          if (unidade === 'UN') {
+            const qtd = qtdItem > 0 ? qtdItem : 1;
+            produtosMap[nome].totalUn += qtd;
+            totalUnPeriodo += qtd;
+          } else {
+            const peso = pesoItem > 0 ? pesoItem : (qtdItem > 0 ? qtdItem : 0);
+            produtosMap[nome].totalKg += peso;
+            totalKgPeriodo += peso;
+          }
+
+          if (!produtosNaVenda.has(nome)) {
+            produtosNaVenda.add(nome);
+            produtosMap[nome].qtdTransacoes += 1;
+          }
+        }
+      } catch (err) {}
+    }
+
+    const lista = Object.values(produtosMap).map(p => {
+      const volumePrincipal = p.unidade === 'UN' ? p.totalUn : p.totalKg;
+      const precoMedio = volumePrincipal > 0 ? p.faturamento / volumePrincipal : 0;
+      const percentualReceita = totalFaturamentoPeriodo > 0 ? (p.faturamento / totalFaturamentoPeriodo) * 100 : 0;
+
+      return {
+        ...p,
+        volume: volumePrincipal,
+        precoMedio: parseFloat(precoMedio.toFixed(2)),
+        percentualReceita: parseFloat(percentualReceita.toFixed(1)),
+      };
+    });
+
+    lista.sort((a, b) => b.faturamento - a.faturamento);
+
+    res.json({
+      periodo: dias,
+      totalVendas: vendas.length,
+      totalFaturamento: totalFaturamentoPeriodo,
+      totalKg: parseFloat(totalKgPeriodo.toFixed(3)),
+      totalUn: Math.round(totalUnPeriodo),
+      totalItensDistintos: lista.length,
+      produtos: lista,
+    });
+  } catch (e) {
+    console.error('[gestao:vendasPorProduto]', e.message);
+    res.status(500).json({ erro: e.message || 'Erro ao calcular vendas por produto.' });
   }
 };

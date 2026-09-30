@@ -8,6 +8,7 @@ router.post('/desossa',       ctrl.registrarDesossa);
 router.post('/venda',         ctrl.registrarVenda);
 router.patch('/venda/:id/cancelar', ctrl.cancelarVenda);
 router.get('/caixa/hoje',     ctrl.resumoCaixaHoje);
+router.get('/vendas-produtos', ctrl.vendasPorProduto);
 router.get('/estoque',        ctrl.listarEstoque);
 router.get('/alertas/validade', ctrl.alertasValidade);
 router.delete('/estoque/:id',  ctrl.removerEstoque);

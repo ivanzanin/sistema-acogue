@@ -181,7 +181,7 @@ function Sidebar({ onLogout }) {
   const navGestao = [
     { to:'/dashboard',    icon:'📊', label:'Dashboard' },
     { to:'/desossa',      icon:'🦴', label:'Desossa' },
-    { to:'/gestao',       icon:'📦', label:'Estoque', badge: alertas },
+    { to:'/gestao',       icon:'🥩', label:'Vendas & Cortes' },
     { to:'/historico',    icon:'📋', label:'Histórico' },
     { to:'/produtos',     icon:'🏷️',  label:'Produtos' },
     { to:'/fornecedores', icon:'🏭', label:'Fornecedores' },
