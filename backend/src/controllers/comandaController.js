@@ -103,7 +103,10 @@ exports.adicionarItem = async (req, res) => {
       ];
 
       await prisma.$transaction(ops);
-      const atualizada = await prisma.comanda.findUnique({ where: { id: comanda.id }, include: { itens: { orderBy: { criadoEm: 'asc' } } } });
+      const atualizada = await prisma.comanda.findUnique({
+        where: { id: comanda.id },
+        include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } }
+      });
       return res.status(201).json(atualizada);
     }
 
@@ -160,58 +163,130 @@ exports.removerItem = async (req, res) => {
 exports.fechar = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    const { formaPagamento = 'DINHEIRO', valorPago = 0 } = req.body;
+    const { formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos } = req.body;
     const comanda = await prisma.comanda.findFirst({
       where: { id: toInt(req.params.id), tenantId, status: 'ABERTA' },
-      include: { itens: { include: { produto: true } } },
+      include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } },
     });
     if (!comanda) return res.status(404).json({ erro: 'Comanda nao encontrada ou fechada.' });
     if (comanda.itens.length === 0) return res.status(400).json({ erro: 'Comanda sem itens.' });
 
-    const isVoucher = formaPagamento === 'VOUCHER';
+    const isVoucherAtivo = (!pagamentos?.length && formaPagamento === 'VOUCHER') ||
+      (Array.isArray(pagamentos) && pagamentos.some(p => p.forma === 'VOUCHER'));
 
-    // Se pagar com VOUCHER, a promocao sai e o que vale e o precoVenda normal
+    // Se pagar com VOUCHER (único ou em divisão), os itens em promoção voltam ao preço de venda normal
     let totalCobrado = 0;
     const itensFinalizados = comanda.itens.map(i => {
-      const isDiversos = i.produto?.codigoBarras === '999' || i.produto?.nome === 'Diversos';
+      const isDiversos = i.produto?.codigoBarras === '999' || i.produto?.nome === 'Diversos' || i.nome?.toLowerCase().includes('diversos');
       let precoUnitario = i.precoKg;
-      if (isVoucher && !isDiversos && i.produto?.precoVenda > 0) {
+      if (isVoucherAtivo && !isDiversos && i.produto?.precoVenda > 0) {
         precoUnitario = i.produto.precoVenda;
       }
       const totalItem = +(i.pesoKg * precoUnitario).toFixed(2);
       totalCobrado += totalItem;
       return {
+        id: i.produtoId,
+        produtoId: i.produtoId,
         nome: i.nome,
         peso: i.pesoKg,
         precoKg: precoUnitario,
         total: totalItem,
         unidade: i.produto?.unidade || 'KG',
         quantidade: i.pesoKg,
+        criadoEm: i.criadoEm,
       };
     });
     totalCobrado = +totalCobrado.toFixed(2);
 
-    const vp = toFloat(valorPago) || totalCobrado;
-    const troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalCobrado) : 0;
+    let finalForma = formaPagamento;
+    let finalPagamentosJson = null;
+    let vp = 0;
+    let troco = 0;
 
-    await prisma.$transaction([
-      prisma.caixa.create({
-        data: {
-          data: inicioDia(),
-          valorTotal: totalCobrado,
-          itensJson: JSON.stringify(itensFinalizados),
-          formaPagamento,
-          valorPago: vp,
-          troco,
-          tenantId,
-        },
-      }),
-      prisma.comanda.update({
-        where: { id: comanda.id },
-        data: { status: 'FECHADA', fechadaEm: new Date(), total: totalCobrado }
-      }),
-    ]);
-    res.json({ mensagem: 'Comanda fechada.', total: totalCobrado, troco });
+    if (Array.isArray(pagamentos) && pagamentos.length > 0) {
+      finalForma = 'MULTIPLO';
+      finalPagamentosJson = JSON.stringify(pagamentos);
+      vp = pagamentos.reduce((acc, p) => acc + (toFloat(p.valorPago) || toFloat(p.valor) || 0), 0);
+      const somaDinheiro = pagamentos
+        .filter(p => p.forma === 'DINHEIRO')
+        .reduce((acc, p) => {
+          const vP = toFloat(p.valorPago);
+          const v = toFloat(p.valor);
+          return acc + (vP > v ? vP - v : 0);
+        }, 0);
+      troco = somaDinheiro;
+    } else {
+      if (!['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'VOUCHER'].includes(formaPagamento))
+        return res.status(400).json({ erro: 'Forma de pagamento invalida.' });
+      vp = toFloat(valorPago) || totalCobrado;
+      troco = formaPagamento === 'DINHEIRO' ? Math.max(0, vp - totalCobrado) : 0;
+      finalPagamentosJson = JSON.stringify([{ forma: formaPagamento, valor: totalCobrado, valorPago: vp, troco }]);
+    }
+
+    // Controle de estoque exclusivo para Assados (sessão aberta)
+    const ops = [];
+    for (const item of itensFinalizados) {
+      const qtdOuPeso = item.unidade === 'UN' ? (toFloat(item.quantidade) || 1) : (toFloat(item.peso) || 0);
+
+      // 1. Se vendido diretamente com o nome de um produto assado na sessão aberta
+      const assadoDireto = await prisma.produtoAssado.findFirst({
+        where: { tenantId, nome: item.nome, sessao: { status: 'ABERTA' } }
+      });
+      if (assadoDireto) {
+        ops.push(prisma.produtoAssado.update({
+          where: { id: assadoDireto.id },
+          data: { estoqueAtual: Math.max(0, assadoDireto.estoqueAtual - qtdOuPeso) }
+        }));
+      }
+
+      // 2. Se vinculado a um produto de origem do açougue
+      const prodOrigem = await prisma.produto.findFirst({ where: { nome: item.nome, tenantId, ativo: true } });
+      if (prodOrigem) {
+        const assadosVinculados = await prisma.produtoAssado.findMany({
+          where: { tenantId, produtoOrigemId: prodOrigem.id, sessao: { status: 'ABERTA' } }
+        });
+        for (const pa of assadosVinculados) {
+          ops.push(prisma.produtoAssado.update({
+            where: { id: pa.id },
+            data: { estoqueAtual: Math.max(0, pa.estoqueAtual - qtdOuPeso) }
+          }));
+        }
+      }
+    }
+
+    if (ops.length > 0) await prisma.$transaction(ops);
+
+    const vendaData = {
+      data: inicioDia(),
+      valorTotal: totalCobrado,
+      itensJson: JSON.stringify(itensFinalizados),
+      formaPagamento: finalForma,
+      valorPago: vp,
+      troco,
+      tenantId,
+    };
+    if (finalPagamentosJson) {
+      vendaData.pagamentosJson = finalPagamentosJson;
+    }
+
+    let novaVenda;
+    try {
+      novaVenda = await prisma.caixa.create({ data: vendaData });
+    } catch (createErr) {
+      if (vendaData.pagamentosJson && createErr.message && createErr.message.includes('pagamentosJson')) {
+        delete vendaData.pagamentosJson;
+        novaVenda = await prisma.caixa.create({ data: vendaData });
+      } else {
+        throw createErr;
+      }
+    }
+
+    await prisma.comanda.update({
+      where: { id: comanda.id },
+      data: { status: 'FECHADA', fechadaEm: new Date(), total: totalCobrado }
+    });
+
+    res.json({ mensagem: 'Comanda fechada com sucesso.', total: totalCobrado, troco, vendaId: novaVenda.id });
   } catch (e) {
     console.error('[comanda:fechar]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao fechar comanda.' });
