@@ -21,6 +21,7 @@ const comandaRoutes      = require('./src/routes/comandaRoutes');
 const fornecedorRoutes   = require('./src/routes/fornecedorRoutes');
 const contasPagarRoutes  = require('./src/routes/contasPagarRoutes');
 const assadosRoutes      = require('./src/routes/assadosRoutes');
+const fiscalRoutes       = require('./src/routes/fiscalRoutes');
 
 const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -48,7 +49,8 @@ app.use('/historico',    historicoRoutes);
 app.use('/comandas',     comandaRoutes);
 app.use('/fornecedores', fornecedorRoutes);
 app.use('/contas-pagar', contasPagarRoutes);
-app.use('/assados',     assadosRoutes);
+app.use('/assados',      assadosRoutes);
+app.use('/fiscal',       fiscalRoutes);
 
 // Upload de logo
 const jwt = require('jsonwebtoken');

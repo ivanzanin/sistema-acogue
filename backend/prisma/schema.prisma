@@ -33,6 +33,7 @@ model ClienteTenant {
   contasPagar        ContaPagar[]
   sessoesAssado      SessaoAssados[]
   desossaTemplates   DesossaTemplate[]
+  configFiscal       ConfigFiscal?
 }
 
 model Produto {
@@ -285,3 +286,46 @@ model DesossaCorteTemplate {
   precoVendaKg Float           @default(0)
   validade     DateTime?
 }
+
+model ConfigFiscal {
+  id                  Int           @id @default(autoincrement())
+  tenantId            String        @unique
+  tenant              ClienteTenant @relation(fields: [tenantId], references: [id])
+  ambiente            Int           @default(1) // 1 = Produção, 2 = Homologação
+  cnpj                String        @default("68879953000105")
+  razaoSocial         String        @default("L H REZENDE DA SILVA ACOUGUE LTDA")
+  nomeFantasia        String        @default("Casa de Carne Rezende")
+  inscricaoEstadual   String        @default("")
+  uf                  String        @default("PR")
+  municipio           String        @default("Astorga")
+  codigoIbgeMunicipio String        @default("4102109")
+  tokenCsc            String        @default("6CRSC5ZHMECONKZQUJKB0OCQSM1WCEP5I55D")
+  idTokenCsc          String        @default("000001")
+  serie               Int           @default(1)
+  ultimoNumero        Int           @default(0)
+  certificadoArquivo  String?       @default("certificado.pfx")
+  certificadoSenha    String?
+  emitirOpcional      Boolean       @default(true) // Se true, só emite se marcar a caixinha no caixa
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model NfceEmitida {
+  id              Int           @id @default(autoincrement())
+  tenantId        String
+  numero          Int
+  serie           Int           @default(1)
+  chaveAcesso     String        @unique
+  status          String        @default("AUTORIZADA") // AUTORIZADA, CANCELADA, REJEITADA
+  protocolo       String?
+  motivoStatus    String?
+  xmlAutorizado   String?
+  qrCodeUrl       String?
+  digestValue     String?
+  valorTotal      Float
+  cpfDestinatario String?
+  vendaId         Int?
+  caixaId         Int?
+  dataEmissao     DateTime      @default(now())
+}
+

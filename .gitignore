@@ -43,3 +43,11 @@ pnpm-debug.log*
 *.swo
 .DS_Store
 Thumbs.db
+
+# Certificados Digitais
+*.pfx
+*.p12
+*.pem
+*.key
+backend/certs/
+certs/

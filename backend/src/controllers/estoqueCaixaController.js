@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { inicioDia, fimDia } = require('../lib/dateUtils');
 const { toFloat, getTenantId } = require('../lib/validate');
+const { emitirNfceParaVenda } = require('../services/nfceService');
 
 exports.registrarDesossa = async (req, res) => {
   try {
@@ -48,7 +49,7 @@ exports.registrarDesossa = async (req, res) => {
 exports.registrarVenda = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    const { itens, formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos } = req.body;
+    const { itens, formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos, emitirNfce, cpfDestinatario } = req.body;
     if (!Array.isArray(itens) || itens.length === 0)
       return res.status(400).json({ erro: 'Array de itens obrigatorio.' });
 
@@ -166,7 +167,37 @@ exports.registrarVenda = async (req, res) => {
         throw createErr;
       }
     }
-    res.json({ mensagem: 'Venda registrada.', vendaId: novaVenda.id, total: totalVenda, troco });
+
+    let nfceResultado = null;
+    if (emitirNfce) {
+      try {
+        const pagamentosArr = Array.isArray(pagamentos) && pagamentos.length > 0
+          ? pagamentos
+          : [{ forma: finalForma, valor: totalVenda, valorPago: vp, troco }];
+
+        nfceResultado = await emitirNfceParaVenda({
+          tenantId,
+          vendaId: novaVenda.id,
+          caixaId: novaVenda.id,
+          itens,
+          total: totalVenda,
+          pagamentos: pagamentosArr,
+          troco,
+          cpfDestinatario: cpfDestinatario || null,
+        });
+      } catch (nfceErr) {
+        console.error('[estoque:venda:nfce]', nfceErr.message);
+        nfceResultado = { erro: nfceErr.message };
+      }
+    }
+
+    res.json({
+      mensagem: 'Venda registrada.',
+      vendaId: novaVenda.id,
+      total: totalVenda,
+      troco,
+      nfce: nfceResultado,
+    });
   } catch (e) {
     console.error('[estoque:venda]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao registrar venda.' });

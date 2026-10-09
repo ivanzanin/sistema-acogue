@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { inicioDia } = require('../lib/dateUtils');
 const { toFloat, toInt, getTenantId } = require('../lib/validate');
+const { emitirNfceParaVenda } = require('../services/nfceService');
 
 exports.listar = async (req, res) => {
   try {
@@ -163,7 +164,7 @@ exports.removerItem = async (req, res) => {
 exports.fechar = async (req, res) => {
   try {
     const tenantId = getTenantId(req);
-    const { formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos } = req.body;
+    const { formaPagamento = 'DINHEIRO', valorPago = 0, pagamentos, emitirNfce, cpfDestinatario } = req.body;
     const comanda = await prisma.comanda.findFirst({
       where: { id: toInt(req.params.id), tenantId, status: 'ABERTA' },
       include: { itens: { include: { produto: true }, orderBy: { criadoEm: 'asc' } } },
@@ -286,7 +287,36 @@ exports.fechar = async (req, res) => {
       data: { status: 'FECHADA', fechadaEm: new Date(), total: totalCobrado }
     });
 
-    res.json({ mensagem: 'Comanda fechada com sucesso.', total: totalCobrado, troco, vendaId: novaVenda.id });
+    let nfceResultado = null;
+    if (emitirNfce) {
+      try {
+        const pagamentosArr = Array.isArray(pagamentos) && pagamentos.length > 0
+          ? pagamentos
+          : [{ forma: finalForma, valor: totalCobrado, valorPago: vp, troco }];
+
+        nfceResultado = await emitirNfceParaVenda({
+          tenantId,
+          vendaId: novaVenda.id,
+          caixaId: novaVenda.id,
+          itens: itensFinalizados,
+          total: totalCobrado,
+          pagamentos: pagamentosArr,
+          troco,
+          cpfDestinatario: cpfDestinatario || null,
+        });
+      } catch (nfceErr) {
+        console.error('[comanda:fechar:nfce]', nfceErr.message);
+        nfceResultado = { erro: nfceErr.message };
+      }
+    }
+
+    res.json({
+      mensagem: 'Comanda fechada com sucesso.',
+      total: totalCobrado,
+      troco,
+      vendaId: novaVenda.id,
+      nfce: nfceResultado,
+    });
   } catch (e) {
     console.error('[comanda:fechar]', e.message);
     res.status(500).json({ erro: e.message || 'Erro ao fechar comanda.' });

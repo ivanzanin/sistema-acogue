@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { gerarPayloadPix, gerarQrCodePixDataUrl } from '../utils/pix';
+import { imprimirCupom } from '../utils/imprimirCupom';
 
 const Step = ({ num, title, children }) => (
   <div className="flex gap-4">
@@ -247,6 +248,447 @@ function PixConfigSection() {
   );
 }
 
+function FiscalConfigSection() {
+  const [config, setConfig] = useState({
+    ambiente: 1,
+    cnpj: '68879953000105',
+    razaoSocial: 'L H REZENDE DA SILVA ACOUGUE LTDA',
+    nomeFantasia: 'Casa de Carne Rezende',
+    inscricaoEstadual: '',
+    uf: 'PR',
+    municipio: 'Astorga',
+    codigoIbgeMunicipio: '4102109',
+    tokenCsc: '6CRSC5ZHMECONKZQUJKB0OCQSM1WCEP5I55D',
+    idTokenCsc: '000001',
+    serie: 1,
+    ultimoNumero: 0,
+    emitirOpcional: true,
+    certificadoSenha: '',
+  });
+  const [notas, setNotas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const carregarDados = async () => {
+    setLoading(true);
+    try {
+      const [resConf, resNotas] = await Promise.all([
+        api.get('/fiscal/config'),
+        api.get('/fiscal/notas'),
+      ]);
+      if (resConf.data) {
+        setConfig(prev => ({
+          ...prev,
+          ...resConf.data,
+          certificadoSenha: '',
+        }));
+      }
+      if (Array.isArray(resNotas.data)) {
+        setNotas(resNotas.data);
+      }
+    } catch (e) {
+      console.error('[FiscalConfig] Erro ao carregar:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  const salvar = async (e) => {
+    e?.preventDefault();
+    setSalvando(true);
+    setMsg(null);
+    try {
+      const { data } = await api.post('/fiscal/config', config);
+      setMsg({ tipo: 'ok', texto: 'Configurações fiscais salvas com sucesso!' });
+      if (data.config) {
+        setConfig(prev => ({ ...prev, ...data.config, certificadoSenha: '' }));
+      }
+      setTimeout(() => setMsg(null), 4000);
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: e.response?.data?.erro || 'Erro ao salvar configurações fiscais.' });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const baixarXml = (notaId, chave) => {
+    const token = localStorage.getItem('token');
+    window.open(`/fiscal/notas/${notaId}/xml?token=${token}`, '_blank');
+  };
+
+  const reimprimir = (nota) => {
+    const itens = [
+      {
+        nome: 'Venda de Balcão / Carnes',
+        unidade: 'UN',
+        quantidade: 1,
+        peso: '1',
+        precoKg: nota.valorTotal,
+        total: nota.valorTotal,
+      }
+    ];
+
+    imprimirCupom(
+      itens,
+      nota.valorTotal,
+      config.nomeFantasia || 'CASA DE CARNE REZENDE',
+      'DINHEIRO',
+      nota.valorTotal,
+      0,
+      null,
+      {
+        chaveAcesso: nota.chaveAcesso,
+        numero: nota.numero,
+        serie: nota.serie,
+        protocolo: nota.protocolo,
+        qrCodeUrl: nota.qrCodeUrl,
+        cpfDestinatario: nota.cpfDestinatario,
+        danfeInfo: {
+          chaveAcesso: nota.chaveAcesso,
+          numero: nota.numero,
+          serie: nota.serie,
+          protocolo: nota.protocolo,
+          qrCodeUrl: nota.qrCodeUrl,
+          emitente: {
+            razaoSocial: config.razaoSocial,
+            cnpj: config.cnpj,
+            ie: config.inscricaoEstadual,
+            municipio: config.municipio,
+            uf: config.uf,
+          },
+          destinatario: nota.cpfDestinatario ? { cpf: nota.cpfDestinatario } : null,
+        }
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* CARD PRINCIPAL DE CONFIGURAÇÃO */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-stone-200 mb-6 gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🧾</span>
+            <div>
+              <h2 className="text-base font-bold text-stone-900">Emissão de Cupom Fiscal Eletrônico (NFC-e - SEFAZ/PR)</h2>
+              <p className="text-xs text-stone-500">Credenciais oficiais da SEFAZ Paraná, Token CSC de Produção e Certificado A1</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              {config.ambiente === 1 ? 'Ambiente: Produção (SEFAZ-PR)' : 'Ambiente: Homologação / Teste'}
+            </span>
+          </div>
+        </div>
+
+        {/* STATUS DO CERTIFICADO E CSC */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">🔒</span>
+            <div>
+              <p className="text-xs font-bold text-emerald-900">Certificado Digital A1 Integrado</p>
+              <p className="text-[11px] text-emerald-700 mt-0.5">
+                Arquivo <b>certificado.pfx</b> instalado no servidor e protegido contra uploads externos.
+              </p>
+              <p className="text-[10px] text-emerald-600 mt-1">Status: Conectado e pronto para assinar NFC-e</p>
+            </div>
+          </div>
+
+          <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">🔑</span>
+            <div>
+              <p className="text-xs font-bold text-stone-900">Token CSC Oficial Paraná (QR Code 2.0)</p>
+              <p className="text-[11px] text-stone-600 mt-0.5">
+                Id Token: <b>000001</b> | Código de Segurança Ativo
+              </p>
+              <p className="text-[10px] text-stone-500 mt-1">Gera QR Code legível pela câmera de celulares e fiscais</p>
+            </div>
+          </div>
+        </div>
+
+        {msg && (
+          <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-bold border ${msg.tipo === 'ok' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-red-50 border-red-300 text-red-800'}`}>
+            {msg.texto}
+          </div>
+        )}
+
+        <form onSubmit={salvar} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">CNPJ do Emitente *</label>
+              <input
+                type="text"
+                required
+                value={config.cnpj}
+                onChange={e => setConfig({ ...config, cnpj: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-stone-700 mb-1">Razão Social (Receita Federal / SEFAZ) *</label>
+              <input
+                type="text"
+                required
+                value={config.razaoSocial}
+                onChange={e => setConfig({ ...config, razaoSocial: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-bold text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Nome Fantasia *</label>
+              <input
+                type="text"
+                required
+                value={config.nomeFantasia}
+                onChange={e => setConfig({ ...config, nomeFantasia: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Inscrição Estadual (IE)</label>
+              <input
+                type="text"
+                value={config.inscricaoEstadual}
+                onChange={e => setConfig({ ...config, inscricaoEstadual: e.target.value })}
+                placeholder="Ex: 90812345-67"
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Município / UF *</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  value={config.municipio}
+                  onChange={e => setConfig({ ...config, municipio: e.target.value })}
+                  className="flex-1 bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-brand-500"
+                />
+                <input
+                  type="text"
+                  required
+                  maxLength={2}
+                  value={config.uf}
+                  onChange={e => setConfig({ ...config, uf: e.target.value.toUpperCase() })}
+                  className="w-14 text-center bg-stone-50 border border-stone-300 rounded-lg px-2 py-2 text-xs font-bold text-stone-900 focus:outline-none focus:border-brand-500 uppercase"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-stone-700 mb-1">Token CSC (Produção SEFAZ/PR) *</label>
+              <input
+                type="text"
+                required
+                value={config.tokenCsc}
+                onChange={e => setConfig({ ...config, tokenCsc: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Id Token CSC *</label>
+              <input
+                type="text"
+                required
+                value={config.idTokenCsc}
+                onChange={e => setConfig({ ...config, idTokenCsc: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Código IBGE Município</label>
+              <input
+                type="text"
+                value={config.codigoIbgeMunicipio}
+                onChange={e => setConfig({ ...config, codigoIbgeMunicipio: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Série da NFC-e</label>
+              <input
+                type="number"
+                min="1"
+                max="999"
+                value={config.serie}
+                onChange={e => setConfig({ ...config, serie: parseInt(e.target.value) || 1 })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Último Número Emitido</label>
+              <input
+                type="number"
+                min="0"
+                value={config.ultimoNumero}
+                onChange={e => setConfig({ ...config, ultimoNumero: parseInt(e.target.value) || 0 })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-mono text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Ambiente SEFAZ</label>
+              <select
+                value={config.ambiente}
+                onChange={e => setConfig({ ...config, ambiente: parseInt(e.target.value) })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs font-bold text-stone-900 focus:outline-none focus:border-brand-500"
+              >
+                <option value={1}>1 - Produção (Válido Fiscalmente)</option>
+                <option value={2}>2 - Homologação (Testes)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Senha do Certificado A1</label>
+              <input
+                type="password"
+                placeholder="(Em branco p/ manter atual)"
+                value={config.certificadoSenha}
+                onChange={e => setConfig({ ...config, certificadoSenha: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+          </div>
+
+          {/* CHECKBOX EMISSÃO OPCIONAL */}
+          <div className="pt-2">
+            <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.emitirOpcional}
+                onChange={e => setConfig({ ...config, emitirOpcional: e.target.checked })}
+                className="w-5 h-5 accent-emerald-600 rounded border-stone-300"
+              />
+              <div>
+                <p className="text-xs font-bold text-stone-900">Emissão Opcional por Venda (Recomendado)</p>
+                <p className="text-[11px] text-stone-500">
+                  Permite ao operador de caixa marcar a caixinha "Emitir Cupom Fiscal (NFC-e)" apenas quando o cliente solicitar, mantendo as demais vendas como cupom interno.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3 pt-3">
+            <button
+              type="submit"
+              disabled={salvando}
+              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-xs px-6 py-2.5 rounded-lg transition-all active:scale-95"
+            >
+              {salvando ? 'Salvando...' : 'Salvar Configurações Fiscais'}
+            </button>
+            <button
+              type="button"
+              onClick={carregarDados}
+              className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs px-4 py-2.5 rounded-lg transition-all"
+            >
+              Recarregar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* HISTÓRICO DE NOTAS FISCAIS EMITIDAS */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-stone-900">Histórico de NFC-e Emitidas</h3>
+            <p className="text-xs text-stone-500">Notas autorizadas pela SEFAZ com link de download de XML e reimpressão</p>
+          </div>
+          <span className="text-xs font-bold text-stone-600 bg-stone-100 px-3 py-1 rounded-lg">
+            Total emitidas: {notas.length}
+          </span>
+        </div>
+
+        {loading ? (
+          <p className="text-xs text-stone-500 py-4">Carregando histórico fiscal...</p>
+        ) : notas.length === 0 ? (
+          <div className="text-center py-8 text-stone-400 text-xs">
+            Nenhuma nota fiscal emitida ainda. Ao realizar vendas com a opção "Emitir Cupom Fiscal" marcada no PDV ou Comandas, elas aparecerão aqui.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-stone-50 border-b border-stone-200 text-stone-600 uppercase text-[10px]">
+                <tr>
+                  <th className="py-2.5 px-3">Data / Hora</th>
+                  <th className="py-2.5 px-3">Nº / Série</th>
+                  <th className="py-2.5 px-3">Valor Total</th>
+                  <th className="py-2.5 px-3">CPF Consumidor</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Chave de Acesso</th>
+                  <th className="py-2.5 px-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {notas.map(n => (
+                  <tr key={n.id} className="hover:bg-stone-50/80">
+                    <td className="py-2.5 px-3 font-medium text-stone-700">
+                      {new Date(n.dataEmissao).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="py-2.5 px-3 font-bold text-stone-900">
+                      NFC-e #{String(n.numero).padStart(6, '0')} (Série {n.serie})
+                    </td>
+                    <td className="py-2.5 px-3 font-bold font-mono text-stone-900">
+                      R$ {parseFloat(n.valorTotal).toFixed(2)}
+                    </td>
+                    <td className="py-2.5 px-3 text-stone-600 font-mono">
+                      {n.cpfDestinatario || 'Não informado'}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {n.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-[10px] text-stone-500 max-w-xs truncate" title={n.chaveAcesso}>
+                      {n.chaveAcesso}
+                    </td>
+                    <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+                      <button
+                        onClick={() => reimprimir(n)}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 rounded transition-colors"
+                        title="Reimprimir Cupom DANFE NFC-e"
+                      >
+                        🖨️ Imprimir
+                      </button>
+                      <button
+                        onClick={() => baixarXml(n.id, n.chaveAcesso)}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded transition-colors"
+                        title="Baixar Arquivo XML Oficial para a contabilidade"
+                      >
+                        📥 XML
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Configuracoes() {
   const [backups, setBackups]     = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -281,6 +723,7 @@ export default function Configuracoes() {
 
   const tabs = [
     { id: 'logo',    label: '🖼️ Logo do Açougue' },
+    { id: 'fiscal',  label: '🧾 Nota Fiscal (NFC-e)' },
     { id: 'pix',     label: '📱 PIX Dinâmico' },
     { id: 'leitor',  label: '🏷️ Leitor de Código de Barras' },
     { id: 'backup',  label: '💾 Backup' },
@@ -292,7 +735,7 @@ export default function Configuracoes() {
     <div className="min-h-screen bg-page p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Configurações</h1>
-        <p className="text-xs text-stone-500 mt-0.5">PIX, leitor de código de barras, backup e sistema</p>
+        <p className="text-xs text-stone-500 mt-0.5">PIX, NFC-e fiscal, leitor de código de barras, backup e sistema</p>
       </div>
 
       {/* TABS */}
@@ -308,6 +751,11 @@ export default function Configuracoes() {
       {/* TAB: LOGO */}
       {tabAtiva === 'logo' && (
         <LogoUploadSection />
+      )}
+
+      {/* TAB: FISCAL */}
+      {tabAtiva === 'fiscal' && (
+        <FiscalConfigSection />
       )}
 
       {/* TAB: PIX */}

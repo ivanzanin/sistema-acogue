@@ -418,6 +418,8 @@ function ModalFinalizarComanda({ comanda, produtos = [], cliente, onFechada, onC
   const [valorPago, setValorPago]           = useState('');
   const [salvando, setSalvando]             = useState(false);
   const [erroVenda, setErroVenda]           = useState(null);
+  const [emitirNfce, setEmitirNfce]         = useState(false);
+  const [cpfDestinatario, setCpfDestinatario] = useState('');
 
   // Estados de Divisão de Conta
   const [modoDividido, setModoDividido]     = useState(false);
@@ -550,13 +552,18 @@ function ModalFinalizarComanda({ comanda, produtos = [], cliente, onFechada, onC
       payloadFechamento.valorPago = parseFloat(valorPago) || totalGeral;
     }
 
+    payloadFechamento.emitirNfce = emitirNfce;
+    if (emitirNfce && cpfDestinatario.trim()) {
+      payloadFechamento.cpfDestinatario = cpfDestinatario.trim();
+    }
+
     setSalvando(true);
     setErroVenda(null);
     try {
       const { data } = await api.post(`/comandas/${comanda.id}/fechar`, payloadFechamento);
 
       // Imprime cupom fiscal/não-fiscal
-      imprimirCupom(
+      await imprimirCupom(
         itensCalculados.map(i => ({
           nome: i.nome,
           unidade: i.produto?.unidade || 'KG',
@@ -570,7 +577,8 @@ function ModalFinalizarComanda({ comanda, produtos = [], cliente, onFechada, onC
         modoDividido ? 'MULTIPLO' : formaPagamento,
         modoDividido ? totalGeral : (parseFloat(valorPago) || totalGeral),
         data.troco || 0,
-        pagamentosParaCupom
+        pagamentosParaCupom,
+        data.nfce
       );
 
       onFechada();
@@ -853,6 +861,40 @@ function ModalFinalizarComanda({ comanda, produtos = [], cliente, onFechada, onC
                 )}
               </div>
             </>
+          )}
+        </div>
+
+        {/* OPÇÃO DE EMISSÃO FISCAL (NFC-e) */}
+        <div className="mb-3 p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 flex-shrink-0">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={emitirNfce}
+              onChange={e => setEmitirNfce(e.target.checked)}
+              className="w-5 h-5 accent-emerald-600 rounded border-stone-300"
+            />
+            <div className="flex-1">
+              <span className="text-xs sm:text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                🧾 Emitir Cupom Fiscal (NFC-e na SEFAZ/PR)
+              </span>
+              <span className="text-[11px] text-stone-500 block">
+                Gera a nota com QR Code oficial e protocolo SEFAZ Paraná
+              </span>
+            </div>
+          </label>
+
+          {emitirNfce && (
+            <div className="mt-2.5 pt-2.5 border-t border-stone-200 flex items-center gap-2">
+              <span className="text-xs font-bold text-stone-700 whitespace-nowrap">CPF na Nota:</span>
+              <input
+                type="text"
+                placeholder="000.000.000-00 (Opcional - Nota Paraná)"
+                value={cpfDestinatario}
+                onChange={e => setCpfDestinatario(e.target.value)}
+                maxLength={14}
+                className="flex-1 px-3 py-1.5 text-xs border border-stone-300 rounded-lg font-mono bg-white focus:border-emerald-600 focus:outline-none"
+              />
+            </div>
           )}
         </div>
 

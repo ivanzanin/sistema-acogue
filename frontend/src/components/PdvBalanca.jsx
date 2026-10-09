@@ -393,8 +393,9 @@ export default function PdvBalanca() {
   const [modoLayout, setModoLayout]           = useState(() => localStorage.getItem('pdv_layout_modo') || 'limpo');
   const [buscaBaixo, setBuscaBaixo]           = useState('');
   const [sugestoesAbertas, setSugestoesAbertas] = useState(false);
-  const [indiceSugerido, setIndiceSugerido]   = useState(0);
   const [ultimoItemAdicionado, setUltimoItemAdicionado] = useState(null);
+  const [emitirNfce, setEmitirNfce]           = useState(false);
+  const [cpfDestinatario, setCpfDestinatario] = useState('');
   const buscaRef = useRef(null);
   const inputBaixoRef = useRef(null);
   const sugestoesRef = useRef(null);
@@ -914,11 +915,16 @@ export default function PdvBalanca() {
       payloadVenda.valorPago = parseFloat(valorPago) || totalGeral;
     }
 
+    payloadVenda.emitirNfce = emitirNfce;
+    if (emitirNfce && cpfDestinatario.trim()) {
+      payloadVenda.cpfDestinatario = cpfDestinatario.trim();
+    }
+
     setConfirmar(false); setSalvando(true); setErroVenda(null);
     try {
       const { data } = await api.post('/gestao/venda', payloadVenda);
       setUltimaVendaId(data.vendaId);
-      imprimirCupom(
+      await imprimirCupom(
         itensCalculados.map(i => ({
           ...i,
           precoKg: i.precoKgCobrado,
@@ -929,13 +935,16 @@ export default function PdvBalanca() {
         modoDividido ? 'MULTIPLO' : formaPagamento,
         modoDividido ? totalGeral : (parseFloat(valorPago) || totalGeral),
         data.troco || 0,
-        pagamentosParaCupom
+        pagamentosParaCupom,
+        data.nfce
       );
       setVendaFinalizada(true);
       setTimeout(() => {
         setItensCarrinho([]); setVendaFinalizada(false); setValorPago(''); setFormaPagamento('DINHEIRO'); setErroVenda(null);
         setModoDividido(false);
         setUltimoItemAdicionado(null);
+        setEmitirNfce(false);
+        setCpfDestinatario('');
         sessionStorage.removeItem('pdv_carrinho');
         sessionStorage.removeItem('pdv_forma');
         sessionStorage.removeItem('pdv_valorpago');
@@ -1391,6 +1400,40 @@ export default function PdvBalanca() {
                     )}
                   </div>
                 </>
+              )}
+            </div>
+
+            {/* OPÇÃO DE EMISSÃO FISCAL (NFC-e) */}
+            <div className="mb-3 p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 flex-shrink-0">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={emitirNfce}
+                  onChange={e => setEmitirNfce(e.target.checked)}
+                  className="w-5 h-5 accent-emerald-600 rounded border-stone-300"
+                />
+                <div className="flex-1">
+                  <span className="text-xs sm:text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                    🧾 Emitir Cupom Fiscal (NFC-e na SEFAZ/PR)
+                  </span>
+                  <span className="text-[11px] text-stone-500 block">
+                    Gera a nota com QR Code oficial e protocolo SEFAZ Paraná
+                  </span>
+                </div>
+              </label>
+
+              {emitirNfce && (
+                <div className="mt-2.5 pt-2.5 border-t border-stone-200 flex items-center gap-2">
+                  <span className="text-xs font-bold text-stone-700 whitespace-nowrap">CPF na Nota:</span>
+                  <input
+                    type="text"
+                    placeholder="000.000.000-00 (Opcional - Nota Paraná)"
+                    value={cpfDestinatario}
+                    onChange={e => setCpfDestinatario(e.target.value)}
+                    maxLength={14}
+                    className="flex-1 px-3 py-1.5 text-xs border border-stone-300 rounded-lg font-mono bg-white focus:border-emerald-600 focus:outline-none"
+                  />
+                </div>
               )}
             </div>
 
