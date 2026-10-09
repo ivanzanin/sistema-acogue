@@ -49,5 +49,6 @@ Thumbs.db
 *.p12
 *.pem
 *.key
-backend/certs/
+backend/certs/*
+!backend/certs/.gitkeep
 certs/
